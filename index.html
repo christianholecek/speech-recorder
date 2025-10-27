@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Language Experiment Recorder</title>
+
+<style>
+  /* ===== THEME TOKENS ===== */
+  :root[data-theme="light"]{
+    /* Uni Graz (light) */
+    --uni-yellow:#ffd500; --uni-black:#000; --uni-grey:#c6c6c6; --uni-white:#fff;
+
+    --bg: var(--uni-white);
+    --page-bg: var(--bg);
+    --card: var(--uni-white);
+    --ink: var(--uni-black);
+    --muted: #444;
+    --accent: var(--uni-yellow);
+    --border: #e6e6e6;
+    --pill-bg: #f7f7f7;
+    --panel: #ffffff;   /* inner boxes like consent */
+    --btn-fg: #000000;  /* button text */
+    --shadow: 0 10px 30px rgba(0,0,0,.08);
+  }
+  :root[data-theme="dark"]{
+    /* Original dark blue theme */
+    --bg: #0b1020;
+    --page-bg: linear-gradient(180deg,#0b1020,#0e1530);
+    --card: #0f1633;
+    --ink: #e8ecff;
+    --muted: #a5b0d6;
+    --accent: #7aa2ff;
+    --border: #1f2a55;
+    --pill-bg: #0c1227;
+    --panel: #0c1227;
+    --btn-fg: #08122a;
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  :root{ color-scheme: light dark; }
+
+  /* ===== Base layout & typography ===== */
+  html,body{
+    margin:0;height:100%;
+    background:var(--page-bg);
+    color:var(--ink);
+    font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial
+  }
+  .wrap{max-width:920px;margin:0 auto;padding:24px}
+  .card{
+    background:var(--card);border:1px solid var(--border);
+    border-radius:16px;box-shadow:var(--shadow);padding:20px
+  }
+  h1{margin:0 0 8px;font-size:26px}
+  h2{margin:14px 0 6px;font-size:20px}
+  p{color:var(--muted)}
+  label{display:block;margin:10px 0 6px}
+
+  /* Text inputs (checkbox overridden below) */
+  input{
+    background:var(--panel);color:var(--ink);
+    border:1px solid var(--border);border-radius:12px;
+    padding:10px 12px;width:100%;box-sizing:border-box
+  }
+
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  button{
+    background:var(--accent);border:1px solid var(--border);
+    color:var(--btn-fg);font-weight:700;border-radius:12px;padding:10px 14px;cursor:pointer
+  }
+  button[disabled]{opacity:.5;cursor:not-allowed}
+  .btn-ghost{background:var(--pill-bg);color:var(--ink);border:1px solid var(--border)}
+  .pill{display:inline-block;background:var(--pill-bg);border:1px solid var(--border);border-radius:999px;padding:6px 10px;color:var(--muted);font-size:12px}
+  .screen{display:none}
+  .screen.active{display:block}
+  .word{font-size:48px;text-align:center;margin:24px 0}
+  .subtitle{color:var(--muted)}
+  .footer{margin-top:12px;color:var(--muted);font-size:12px}
+  audio{width:100%}
+  .listInfo{font-weight:600}
+
+  /* ===== Consent: left alignment & tidy scrollbox ===== */
+  /* Don’t style the checkbox like a text input */
+  input[type="checkbox"]{
+    width:auto !important;background:transparent !important;border:none !important;
+    box-sizing:content-box !important;margin:0 !important;
+  }
+  #scr-consent{
+    display:flex;flex-direction:column;align-items:flex-start;text-align:left;
+  }
+  #scr-consent .consent-box{
+    box-sizing:border-box;width:100%;max-width:100%;max-height:260px;
+    background:var(--panel);border:1px solid var(--border);
+    border-radius:12px;padding:14px;overflow-y:auto;overflow-x:hidden;
+    padding-right:14px;scrollbar-gutter:stable both-edges;
+    font-size:inherit;line-height:1.35;background-clip:padding-box;text-align:left;
+  }
+  #scr-consent .consent-box p{margin:0 0 10px}
+  #scr-consent label{
+    display:flex !important;align-items:flex-start;gap:10px;margin:10px 0 6px;text-align:left !important;
+  }
+  #scr-consent label span{white-space:nowrap;line-height:1.2}
+  #scr-consent input[type="checkbox"]{margin-top:3px}
+  #scr-consent .row{justify-content:flex-start !important}
+  @media (max-width:640px){
+    #scr-consent label span{white-space:normal}
+  }
+</style>
+</head>
+
+<body>
+<div class="wrap">
+  <div class="card">
+    <!-- Header with theme switch -->
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <h1>Language Recorder</h1>
+      <button id="btnTheme" class="btn-ghost" type="button">Theme: Uni Graz</button>
+    </div>
+    <p class="subtitle">Language experiment recording.</p>
+
+    <!-- Screen 0: consent -->
+    <div id="scr-consent" class="screen active">
+      <h2>Participant Information & Consent</h2>
+      <div class="consent-box">
+        <p><strong>Purpose:</strong> This study investigates the production of vowels in English and German varieties. Your speech will be recorded for acoustic analysis.</p>
+        <p><strong>What you will do:</strong> Read short prompts and produce words. Sessions take ~20 minutes.</p>
+        <p><strong>Data:</strong> Audio recordings and responses will be stored securely and used for research purposes. Data will be anonymised for publication.</p>
+        <p><strong>Voluntary:</strong> Participation is voluntary. You can withdraw at any time before submission.</p>
+        <p><strong>Contact:</strong> For questions, contact the person listed in the study information sheet.</p>
+      </div>
+      <label style="display:flex;align-items:center;gap:10px">
+        <input type="checkbox" id="consentChk" />
+        <span>I have read the information and consent to participate.</span>
+      </label>
+      <div class="row" style="margin-top:12px">
+        <button id="btnConsent" type="button" disabled>Agree and Continue</button>
+        <button class="btn-ghost" id="btnDecline" type="button">Decline</button>
+      </div>
+      <p class="footer">Note: Microphone access will only be requested after you agree and proceed to setup.</p>
+    </div>
+
+    <!-- Screen 1: setup -->
+    <div id="scr-setup" class="screen">
+      <label>Participant ID</label>
+      <input id="pid" placeholder="Please enter your provided participant ID here" />
+      <div class="row" style="margin-top:12px">
+        <button id="btnInit">Enable microphone</button>
+        <button id="btnStart" disabled>Begin task</button>
+        <span class="pill" id="status">mic: not started</span>
+        <span class="pill" id="sr">sr: —</span>
+        <span class="pill" id="level">level: —</span>
+      </div>
+      <p class="footer">Serve over HTTPS (or localhost) for mic access. On iOS, recording must start from a user tap.</p>
+    </div>
+
+    <!-- Screen 2: recording per group -->
+    <div id="scr-task" class="screen">
+      <div class="row">
+        <span class="pill" id="progress">Task 1 / N</span>
+        <span class="pill" id="timer">00:00.0</span>
+        <span class="pill" id="status2">idle</span>
+      </div>
+
+      <div style="margin-top:8px">
+        <div class="listInfo" id="groupTitle"></div>
+        <div class="word" id="wordDisplay">—</div>
+        <p class="subtitle">Press <strong>Space</strong> for next word • <strong>Esc</strong> to pause.<br>After you finish please Accept&save - this can take a few seconds.</p>
+      </div>
+
+      <div class="row" style="margin-top:12px">
+        <button id="btnGroupStart">Start group</button>
+        <button id="btnGroupStop" class="btn-ghost" disabled>Stop group</button>
+        <button id="btnPlay" class="btn-ghost" disabled>Play last take</button>
+        <button id="btnRetake" class="btn-ghost" disabled>Retake recording</button>
+        <button id="btnAccept" disabled>Accept & save</button>
+        <button id="btnNextGroup" class="btn-ghost" disabled>Next group ▶</button>
+      </div>
+
+      <audio id="player" controls style="display:none;margin-top:10px"></audio>
+      <p class="footer">Markers (timestamp + word) are logged on each Space press and saved as CSV alongside the WAV.</p>
+    </div>
+
+    <!-- Screen 3: done -->
+    <div id="scr-done" class="screen">
+      <h2>All tasks complete ✅</h2>
+      <p class="subtitle" id="summary"></p>
+      <p class="footer">If any upload failed, the files were offered as local downloads.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ============== THEME SWITCH ==============
+  const btnTheme = document.getElementById('btnTheme');
+  function applyTheme(t){
+    document.documentElement.setAttribute('data-theme', t);
+    try{ localStorage.setItem('theme', t); }catch(e){}
+    btnTheme.textContent = (t === 'dark') ? 'Theme: Dark Blue' : 'Theme: Uni Graz';
+  }
+  const savedTheme =
+    (function(){
+      try{ return localStorage.getItem('theme'); }catch(e){ return null; }
+    })()
+    || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  applyTheme(savedTheme);
+  btnTheme.addEventListener('click', ()=>{
+    const cur = document.documentElement.getAttribute('data-theme') || 'light';
+    applyTheme(cur === 'dark' ? 'light' : 'dark');
+  });
+
+  // ============== CONFIG ==============
+  const UPLOAD_URL = "https://script.google.com/macros/s/AKfycbyu__fIr1DfRuYwVV12q17YJVYGRxHWv0DtG6VLJGqkCv8Rmz0y0UC_iZikr8NcFB14iQ/exec"; // e.g., https://script.google.com/macros/s/AKfycbx.../exec
+
+  // Tasks
+  const GROUPS = [
+    {
+      id: "1EN-Rhyme",
+      title: "Please read in English: Rhyme the vowel:",
+      words: ["beat → h__t", "bid → h__d", "car → h__r"]
+    },
+    {
+      id: "2DE-Reim",
+      title: "Please read in German: Reime den Vokal:",
+      words: ["Lied → H__d", "Mit → H__t", "Staat → H__t"]
+    },
+    {
+      id: "3EN-Carrier",
+      title: "Please read in English:",
+      words: [
+        "I said good today.","I said food today.","I said head today.",
+        "I said lid today.","I said seat today.","I said reed today.","I said caught today."
+      ]
+    },
+    {
+      id: "4DE-Carrier",
+      title: "Please read in German:",
+      words: [
+        "Ich habe gut gesagt.","Ich habe Mutter gesagt.","Ich habe Sohn gesagt.",
+        "Ich habe Garten gesagt.","Ich habe besser gesagt.","Ich habe Kissen gesagt.","Ich habe Schiene gesagt."
+      ]
+    }
+  ];
+
+  // ============== UI refs ==============
+  const $ = s => document.querySelector(s);
+  const scrConsent = $('#scr-consent');
+  const scrSetup   = $('#scr-setup');
+  const scrTask    = $('#scr-task');
+  const scrDone    = $('#scr-done');
+
+  const pidEl = $('#pid');
+  const btnInit = $('#btnInit'), btnStart = $('#btnStart');
+  btnStart.disabled = true; // stay disabled until initMic() succeeds
+
+  const progressEl = $('#progress'), groupTitleEl = $('#groupTitle'), wordDisplay = $('#wordDisplay');
+  const btnGroupStart = $('#btnGroupStart'), btnGroupStop = $('#btnGroupStop');
+  const btnPlay = $('#btnPlay'), btnRetake = $('#btnRetake'), btnAccept = $('#btnAccept'), btnNextGroup = $('#btnNextGroup');
+  const player = $('#player');
+
+  const statusEl = $('#status'), status2El = $('#status2'), srEl = $('#sr'), levelEl = $('#level');
+  const timerEl = $('#timer');
+  const summaryEl = $('#summary');
+
+  const consentChk = $('#consentChk');
+  const btnConsent = $('#btnConsent');
+  const btnDecline = $('#btnDecline');
+
+  function show(el){
+    document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));
+    el.classList.add('active');
+    window.scrollTo(0,0);
+  }
+  function setStatus(t,cls){ statusEl.textContent=t; statusEl.className='pill '+(cls||''); }
+  function setStatus2(t,cls){ status2El.textContent=t; status2El.className='pill '+(cls||''); }
+
+  // ============== Consent flow ==============
+  consentChk.addEventListener('change', ()=>{
+    btnConsent.disabled = !consentChk.checked;
+  });
+  btnConsent.disabled = !consentChk.checked;
+
+  btnConsent.addEventListener('click', ()=>{
+    if (!consentChk.checked) { alert('Please tick the consent box to continue.'); return; }
+    try{
+      localStorage.setItem('consented','1');
+      localStorage.setItem('consent_time', new Date().toISOString());
+    }catch(e){}
+    show(scrSetup);
+    if (scrConsent && scrConsent.parentNode) scrConsent.parentNode.removeChild(scrConsent);
+  });
+
+  btnDecline.addEventListener('click', ()=>{
+    alert('You chose not to participate. This page will now close.');
+    try{ window.close(); }catch(e){}
+  });
+
+  // ============== Audio / recording state ==============
+  let micReady = false;
+  let audioCtx, stream, source, workletNode, rafId;
+  let recording = false;
+  let recBuffers = [];     // Float32 chunks for current group
+  let totalLength = 0;
+  let sampleRate = 48000;
+  let groupStartTime = 0;  // AudioContext time when group recording started
+  let lastTakeBlob = null; // WAV blob of last group take (for Play/Retake/Accept)
+
+  // Markers for current group: array of { tSec, word, index }
+  let markers = [];
+  // Task state
+  let gIdx = 0;           // group index
+  let wIdx = 0;           // word index within group
+
+  function startTimer(){
+    function tick(){
+      if(!recording) return;
+      const t = audioCtx ? (audioCtx.currentTime - groupStartTime) : 0;
+      const mm = String(Math.floor(t/60)).padStart(2,'0');
+      const ss = String(Math.floor(t%60)).padStart(2,'0');
+      const ds = String(Math.floor((t*10)%10));
+      timerEl.textContent = `${mm}:${ss}.${ds}`;
+      rafId = requestAnimationFrame(tick);
+    }
+    cancelAnimationFrame(rafId);
+    tick();
+  }
+
+  function computeLevel(input){
+    let sum = 0; for(let i=0;i<input.length;i++) sum += input[i]*input[i];
+    const rms = Math.sqrt(sum / input.length);
+    const db = 20*Math.log10(rms + 1e-12);
+    levelEl.textContent = `level: ${db.toFixed(1)} dBFS`;
+  }
+
+  function floatTo16BitPCM(view, offset, input){
+    for (let i = 0; i < input.length; i++, offset += 2) {
+      let s = Math.max(-1, Math.min(1, input[i]));
+      s = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      view.setInt16(offset, s, true);
+    }
+  }
+  function writeWavHeader(view, sampleRate, numChannels, numFrames){
+    function wr(view,off,str){ for(let i=0;i<str.length;i++) view.setUint8(off+i, str.charCodeAt(i)); }
+    const bps=2, ba=numChannels*bps, br=sampleRate*ba;
+    wr(view,0,'RIFF'); view.setUint32(4,36+numFrames*ba,true);
+    wr(view,8,'WAVE'); wr(view,12,'fmt '); view.setUint32(16,16,true);
+    view.setUint16(20,1,true); view.setUint16(22,1,true);
+    view.setUint32(24,sampleRate,true); view.setUint32(28,br,true);
+    view.setUint16(32,ba,true); view.setUint16(34,16,true);
+    wr(view,36,'data'); view.setUint32(40,numFrames*ba,true);
+  }
+  function encodeWav(){
+    const mono = new Float32Array(totalLength);
+    let off = 0; for (const b of recBuffers){ mono.set(b, off); off += b.length; }
+    const numFrames = mono.length;
+    const buf = new ArrayBuffer(44 + numFrames*2);
+    const view = new DataView(buf);
+    writeWavHeader(view, sampleRate, 1, numFrames);
+    floatTo16BitPCM(view, 44, mono);
+    return new Blob([view], {type:'audio/wav'});
+  }
+
+  function csvForMarkers(){
+    let lines = ["timestamp_seconds,group_id,word_index,word_text"];
+    for (const m of markers){
+      lines.push(`${m.tSec.toFixed(3)},${GROUPS[gIdx].id},${m.index+1},${m.word}`);
+    }
+    return new Blob([lines.join("\n")], {type:"text/csv"});
+  }
+
+  function baseName(){
+    const pid = (pidEl.value||'anon').trim();
+    const gid = GROUPS[gIdx].id;
+    const ts  = new Date().toISOString().replaceAll(':','-').replace('T','_').slice(0,19);
+    return `${pid}__Group${gid}__${ts}`;
+  }
+
+  function saveLocal(blob, filename){
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  async function uploadBlob(blob, filename){
+    if (!UPLOAD_URL) throw new Error("No UPLOAD_URL set");
+    const base64 = await new Promise((res,rej)=>{
+      const fr = new FileReader();
+      fr.onerror = rej;
+      fr.onload  = () => res(String(fr.result).split(',')[1]);
+      fr.readAsDataURL(blob);
+    });
+    const payload = JSON.stringify({
+      pid: (pidEl.value||'anon'),
+      item: `Group ${GROUPS[gIdx].id}`,
+      filename: filename,
+      mime: blob.type || "application/octet-stream",
+      b64: base64
+    });
+    const r = await fetch(UPLOAD_URL, { method:"POST", headers:{ "Content-Type":"text/plain" }, body: payload });
+    if (!r.ok) throw new Error("HTTP "+r.status);
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error || "Upload failed");
+    return data;
+  }
+
+  // ===== Mic init =====
+  async function initMic(){
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({audio:{
+        channelCount:1, noiseSuppression:false, echoCancellation:false, autoGainControl:false, sampleRate:48000
+      }});
+    }catch(e){
+      alert("Microphone permission denied or unavailable."); console.error(e);
+      setStatus("mic: error","bad"); return;
+    }
+    audioCtx = new (window.AudioContext||window.webkitAudioContext)({sampleRate:48000});
+    sampleRate = audioCtx.sampleRate; srEl.textContent = `sr: ${sampleRate} Hz`;
+    source = audioCtx.createMediaStreamSource(stream);
+
+    const workletCode = `class P extends AudioWorkletProcessor{process(i){const c=i[0][0]; if(c) this.port.postMessage(c); return true}}; registerProcessor('rec-p',P);`;
+    const url = URL.createObjectURL(new Blob([workletCode],{type:'application/javascript'}));
+    await audioCtx.audioWorklet.addModule(url);
+    workletNode = new AudioWorkletNode(audioCtx,'rec-p');
+    source.connect(workletNode); workletNode.connect(audioCtx.destination);
+    workletNode.port.onmessage = (e)=>{
+      const d = e.data;
+      if (!recording){ computeLevel(d); return; }
+      const copy = new Float32Array(d.length); copy.set(d);
+      recBuffers.push(copy); totalLength += copy.length; computeLevel(copy);
+    };
+
+    setStatus("mic: ready","good");
+micReady = true;          // mark mic as ready
+btnInit.disabled = true;  // optional: prevent re-clicking
+btnStart.disabled = false;
+
+  }
+
+  // ===== Group flow =====
+  function loadGroup(){
+    const g = GROUPS[gIdx];
+    wIdx = 0; markers = []; lastTakeBlob = null;
+    progressEl.textContent = `Task ${gIdx+1} / ${GROUPS.length}`;
+    groupTitleEl.textContent = g.title;
+    wordDisplay.textContent = g.words[wIdx] || "—";
+
+    btnGroupStart.disabled = false;
+    btnGroupStop.disabled = true;
+    btnPlay.disabled = true;
+    btnRetake.disabled = true;
+    btnAccept.disabled = true;
+    btnNextGroup.disabled = true;
+    setStatus2("idle");
+    timerEl.textContent = "00:00.0";
+    player.style.display = "none";
+    player.src = "";
+  }
+
+  function onSpaceAdvance(){
+    if (!recording) return; // only advance during active recording
+    const g = GROUPS[gIdx];
+    const tSec = audioCtx.currentTime - groupStartTime;
+    markers.push({ tSec, word: g.words[wIdx], index: wIdx });
+
+    wIdx++;
+    if (wIdx < g.words.length){
+      wordDisplay.textContent = g.words[wIdx];
+    } else {
+      stopGroup(); // auto stop at end
+    }
+  }
+
+  async function startGroup(){
+    recBuffers = []; totalLength = 0; markers = []; lastTakeBlob = null;
+    recording = true; groupStartTime = audioCtx.currentTime;
+    setStatus2("recording…","warn");
+    btnGroupStart.disabled = true;
+    btnGroupStop.disabled = false;
+    btnPlay.disabled = true;
+    btnRetake.disabled = true;
+    btnAccept.disabled = true;
+    btnNextGroup.disabled = true;
+    startTimer();
+  }
+
+  function stopGroup(){
+    if (!recording) return;
+    recording = false; cancelAnimationFrame(rafId);
+    setStatus2("processing…");
+    btnGroupStop.disabled = true;
+
+    lastTakeBlob = encodeWav();
+    setStatus2("stopped — review");
+    btnPlay.disabled = false;
+    btnRetake.disabled = false;
+    btnAccept.disabled = false;
+    player.style.display = "block";
+    player.src = URL.createObjectURL(lastTakeBlob);
+  }
+
+  function retakeGroup(){
+    recBuffers = []; totalLength = 0; markers = []; lastTakeBlob = null;
+    wIdx = 0; wordDisplay.textContent = GROUPS[gIdx].words[wIdx];
+    setStatus2("ready — start when ready");
+    timerEl.textContent = "00:00.0";
+    btnGroupStart.disabled = false;
+    btnGroupStop.disabled = true;
+    btnPlay.disabled = true; btnRetake.disabled = true; btnAccept.disabled = true; btnNextGroup.disabled = true;
+    player.style.display = "none"; player.src = "";
+  }
+
+  async function acceptGroup(){
+    if (!lastTakeBlob) return;
+    const base = baseName();
+    const wavName = `${base}.wav`;
+    const csvName = `${base}__markers.csv`;
+    const csvBlob = csvForMarkers();
+
+    try{
+      if (UPLOAD_URL){
+        await uploadBlob(lastTakeBlob, wavName);
+        await uploadBlob(csvBlob, csvName);
+        setStatus2("uploaded ✓","good");
+      }else{
+        throw new Error("No upload URL set");
+      }
+    }catch(e){
+      console.warn(e);
+      saveLocal(lastTakeBlob, wavName);
+      saveLocal(csvBlob, csvName);
+      setStatus2("saved locally (upload off/failed)","warn");
+    }
+
+    btnNextGroup.disabled = false;
+    btnPlay.disabled = true; btnRetake.disabled = true; btnAccept.disabled = true;
+  }
+
+  function nextGroup(){
+    gIdx++;
+    if (gIdx >= GROUPS.length){
+      show(scrDone);
+      summaryEl.textContent = `Participant ${pidEl.value||'anon'}: ${GROUPS.length} tasks completed.`;
+      return;
+    }
+    loadGroup();
+  }
+
+  // ===== Event wiring =====
+  btnInit.addEventListener('click', initMic);
+  btnStart.addEventListener('click', ()=>{
+  if (!micReady || !stream || !audioCtx) {
+    alert('Please click "Enable microphone" first.');
+    return;
+  }
+  show(scrTask);
+  loadGroup();
+});
+
+
+  btnGroupStart.addEventListener('click', startGroup);
+  btnGroupStop.addEventListener('click', stopGroup);
+  btnPlay.addEventListener('click', ()=>{ if(player.src) player.play(); });
+  btnRetake.addEventListener('click', retakeGroup);
+  btnAccept.addEventListener('click', acceptGroup);
+  btnNextGroup.addEventListener('click', nextGroup);
+
+  // Keyboard: Space to advance word during recording, Esc to stop group
+  window.addEventListener('keydown',(ev)=>{
+    if (scrTask.classList.contains('active')){
+      if (ev.code === 'Space'){
+        ev.preventDefault();
+        onSpaceAdvance();
+      }else if (ev.key === 'Escape'){
+        ev.preventDefault();
+        stopGroup();
+      }
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
