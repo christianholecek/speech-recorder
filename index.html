@@ -7,6 +7,21 @@
 
 <style>
   /* ===== THEME TOKENS ===== */
+  
+  :root[data-theme="dark"]{
+    /* Original dark blue theme */
+    --bg: #0b1020;
+    --page-bg: linear-gradient(180deg,#0b1020,#0e1530);
+    --card: #0f1633;
+    --ink: #e8ecff;
+    --muted: #a5b0d6;
+    --accent: #7aa2ff;
+    --border: #1f2a55;
+    --pill-bg: #0c1227;
+    --panel: #0c1227;
+    --btn-fg: #08122a;
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
   :root[data-theme="light"]{
     /* Uni Graz (light) */
     --uni-yellow:#ffd500; --uni-black:#000; --uni-grey:#c6c6c6; --uni-white:#fff;
@@ -22,20 +37,6 @@
     --panel: #ffffff;   /* inner boxes like consent */
     --btn-fg: #000000;  /* button text */
     --shadow: 0 10px 30px rgba(0,0,0,.08);
-  }
-  :root[data-theme="dark"]{
-    /* Original dark blue theme */
-    --bg: #0b1020;
-    --page-bg: linear-gradient(180deg,#0b1020,#0e1530);
-    --card: #0f1633;
-    --ink: #e8ecff;
-    --muted: #a5b0d6;
-    --accent: #7aa2ff;
-    --border: #1f2a55;
-    --pill-bg: #0c1227;
-    --panel: #0c1227;
-    --btn-fg: #08122a;
-    --shadow: 0 10px 30px rgba(0,0,0,.35);
   }
   :root{ color-scheme: light dark; }
 
@@ -582,3 +583,4 @@ btnStart.disabled = false;
 </script>
 </body>
 </html>
+
