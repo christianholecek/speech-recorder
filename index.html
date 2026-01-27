@@ -47,6 +47,14 @@
     padding:10px 12px;width:100%;box-sizing:border-box
   }
 
+  /* Make selects match inputs */
+  select{
+    background:var(--panel);color:var(--ink);
+    border:1px solid var(--border);border-radius:12px;
+    padding:10px 12px;width:100%;box-sizing:border-box;
+    font-family:inherit;font-size:inherit;
+  }
+
   .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
   button{
     background:var(--accent);border:1px solid var(--border);
@@ -87,11 +95,39 @@
   #scr-consent .consent-box{
     box-sizing:border-box;width:100%;max-width:100%;max-height:320px;
     background:var(--panel);border:1px solid var(--border);
-    border-radius:12px;padding:14px;overflow-y:auto;overflow-x:hidden;
-    padding-right:14px;scrollbar-gutter:stable both-edges;
+    border-radius:12px;padding:14px;
+
+    /* make scrolling obvious */
+    overflow-y: scroll; /* always show scrollbar */
+    overflow-x:hidden;
+
+    padding-right:14px;
+    scrollbar-gutter:stable both-edges;
+
     font-size:inherit;line-height:1.35;background-clip:padding-box;text-align:left;
   }
   #scr-consent .consent-box p{margin:0 0 10px}
+
+  /* Firefox */
+  #scr-consent .consent-box{
+    scrollbar-width: auto;
+    scrollbar-color: rgba(0,0,0,.35) rgba(0,0,0,.08);
+  }
+  /* Chrome / Edge / Safari */
+  #scr-consent .consent-box::-webkit-scrollbar{ width: 12px; }
+  #scr-consent .consent-box::-webkit-scrollbar-track{
+    background: rgba(0,0,0,.06);
+    border-radius: 999px;
+  }
+  #scr-consent .consent-box::-webkit-scrollbar-thumb{
+    background: rgba(0,0,0,.30);
+    border-radius: 999px;
+    border: 3px solid rgba(0,0,0,.06);
+  }
+  #scr-consent .consent-box::-webkit-scrollbar-thumb:hover{
+    background: rgba(0,0,0,.45);
+  }
+
   #scr-consent label{
     display:flex !important;align-items:flex-start;gap:10px;margin:10px 0 6px;text-align:left !important;
   }
@@ -100,6 +136,21 @@
   #scr-consent .row{justify-content:flex-start !important}
   @media (max-width:640px){
     #scr-consent label span{white-space:normal}
+  }
+
+  /* Scroll hint under consent box */
+  .scroll-hint{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    margin:8px 0 0;
+    font-size:12px;
+    color:var(--muted);
+  }
+  .scroll-dot{
+    width:8px;height:8px;border-radius:50%;
+    background:var(--accent);
+    border:1px solid var(--border);
   }
 
   /* Task selection cards */
@@ -194,7 +245,7 @@
         alt="University of Graz"
       />
     </div>
-  
+
     <!-- Screen 0: consent -->
     <div id="scr-consent" class="screen active">
       <h2>Participant Information & Consent</h2>
@@ -203,7 +254,7 @@
         <p><strong>Thank you very much for participating!</strong> <br>Before you start, please read the information and instructions carefully.</p>
 
         <p><strong>What you will do:</strong> You will read short sentences out loud and record them. The session takes about 20 minutes.</p>
-		<p><strong>Tasks and break:</strong> You may complete the two tasks in any order (Task A first or Task B first). If you complete both tasks in one session, please take a <strong>break of at least 15 minutes</strong> between them.</p>
+        <p><strong>Tasks and break:</strong> You may complete the two tasks in any order (Task A first or Task B first). If you complete both tasks in one session, please take a <strong>break of at least 15 minutes</strong> between them.</p>
 
         <p><strong>Before you start (important):</strong></p>
         <ul>
@@ -212,14 +263,40 @@
           <li>Sit close to your microphone (about 30–50 cm) and speak clearly at a normal volume.</li>
           <li>For each recording: press <strong>Start recording</strong>, wait one second, then speak. After you finish, wait one second, then press <strong>Stop</strong>.</li>
         </ul>
-<br>
+        <br>
         <p><strong>Microphone permission:</strong> Your browser will ask for permission to access your microphone. Please click <strong>Allow</strong>. On the microphone setup page, you can make a <strong>test recording</strong> to check your microphone. Test recordings are <strong>not saved</strong>.</p>
 
         <p><strong>Saving your recordings:</strong> After each sentence, click <strong>Accept &amp; save</strong>. Your recording will be uploaded (this can take a few seconds). Once the upload is complete, you can proceed to the next sentence.</p>
 
         <p><strong>Data:</strong> Audio recordings and responses will be stored securely and used for research purposes. Data will be anonymised for publication.</p>
         <p><strong>Voluntary:</strong> Participation is voluntary. You can withdraw at any time before submission.</p>
-        <p><strong>Contact:</strong> If anything is unclear or you experience technical problems, please contact [MEEEEEEEEE], the student assistant who sent you this link..</p>
+        <p><strong>Contact:</strong> If anything is unclear or you experience technical problems, please contact [MEEEEEEEEE], the student assistant who sent you this link.</p>
+      </div>
+
+      <div class="scroll-hint"><span class="scroll-dot"></span>Scroll inside the box to read all information ↓</div>
+
+      <!-- Bundesland + City -->
+      <div class="row" style="margin-top:12px; width:100%">
+        <div style="flex:1; min-width:220px">
+          <label for="stateSel">Bundesland (Austria)</label>
+          <select id="stateSel">
+            <option value="" selected disabled>Please select…</option>
+            <option>Burgenland</option>
+            <option>Kärnten</option>
+            <option>Niederösterreich</option>
+            <option>Oberösterreich</option>
+            <option>Salzburg</option>
+            <option>Steiermark</option>
+            <option>Tirol</option>
+            <option>Vorarlberg</option>
+            <option>Wien</option>
+          </select>
+        </div>
+
+        <div style="flex:1; min-width:220px">
+          <label for="citySel">City</label>
+          <input id="citySel" placeholder="e.g., Graz" />
+        </div>
       </div>
 
       <label style="display:flex;align-items:center;gap:10px">
@@ -295,7 +372,7 @@
 
       <!-- Test recording panel -->
       <div id="testBox" class="test-box" style="display:none">
-        <div class="test-title">Test recording (recommended)</div>
+        <div class="test-title">Test recording</div>
         <div class="subtitle">Press <strong>Start test</strong>, wait one second, read the sentence, wait one second, then press <strong>Stop test</strong>. You can redo the test as many times as you like. Test recordings are not saved.</div>
         <div class="test-prompt" id="testPrompt">Please say: “The North Wind and the Sun were disputing which was the stronger.”</div>
 
@@ -371,6 +448,9 @@
   // ============== CONFIG ==============
   const UPLOAD_URL = "https://script.google.com/macros/s/AKfycbyu__fIr1DfRuYwVV12q17YJVYGRxHWv0DtG6VLJGqkCv8Rmz0y0UC_iZikr8NcFB14iQ/exec";
 
+  // Max recording duration safety cap (seconds)
+  const MAX_REC_SECONDS = 30;
+
   // -------- Task A (English) prompts in fixed pseudo-random order --------
   const TASK_A_SENTENCES = [
     "Say heed again.",
@@ -417,7 +497,7 @@
 
   const CARRIERS_B = {
     C1: "Er hat H__t gesagt.",
-    C2: "Sag H__t nochmal."
+    C2: "Wir haben H__t gesagt."
   };
 
   const TASK_B_SEED = 7331;
@@ -503,38 +583,39 @@
     });
   }
 
-const TASKS = {
-  A: {
-    id: "A",
-    langCode: "E",
-    name: "Task A — English reading",
-    instructionsHtml: `
-      <p><strong>Task A:</strong> Read each English sentence out loud.</p>
-      <ul>
-        <li>Work in a quiet space.</li>
-        <li>For each sentence: Press <strong>Start recording</strong> → read the sentence once → Press <strong>Stop</strong> → <strong>Accept &amp; save</strong>.</li>
-      </ul>
-    `,
-    items: buildTaskAItems()
-  },
-  B: {
-    id: "B",
-    langCode: "G",
-    name: "Task B — German rhyming",
-    instructionsHtml: `
-      <p><strong>Task B:</strong> For each item:</p>
-      <ul>
-        <li>You will see <strong>three German words</strong>. Please <strong>say these three words out loud first</strong>.</li>
-        <li>These three words <strong>rhyme with the missing word in the sentence</strong>. The sentence shows <strong>H__t</strong> as a clue.</li>
-        <li>Then press <strong>Start recording</strong> and read the sentence out loud, saying the missing word clearly (it may be a <strong>nonsense word</strong> — that is expected; please do not “correct” it).</li>
-        <li><strong>Example:</strong> <em>Lied – sieht – zieht</em> → <strong>Er hat hiet gesagt.</strong></li>
-        <li>Press <strong>Stop</strong> → <strong>Accept &amp; save</strong>.</li>
-      </ul>
-    `,
-    items: buildTaskBItems()
-  }
-};
-
+  const TASKS = {
+    A: {
+      id: "A",
+      langCode: "E",
+      name: "Task A — English reading",
+      instructionsHtml: `
+        <p><strong>Task A:</strong> Read each English sentence out loud.</p>
+        <ul>
+          <li>Work in a quiet space.</li>
+          <li>For each sentence: Press <strong>Start recording</strong> → read the sentence once → Press <strong>Stop</strong> → <strong>Accept &amp; save</strong>.</li>
+        </ul>
+      `,
+      items: buildTaskAItems()
+    },
+    B: {
+      id: "B",
+      langCode: "G",
+      name: "Task B — German rhyming",
+      instructionsHtml: `
+        <p><strong>Task B:</strong> For each item:</p>
+        <ul>
+          <li>You will see <strong>three German words</strong>.</li>
+          <li>These three words <strong>rhyme with the missing word in the sentence</strong>. The sentence shows <strong>H__t</strong> as a clue.</li>
+          <li>Press <strong>Start recording</strong>.</li>
+          <li><strong>In the same recording</strong>, first say the <strong>three words</strong>, and then read the <strong>sentence</strong> out loud.</li>
+          <li>The missing word in the sentence may be a <strong>nonsense word</strong> — that is expected. Please say it as shown and do not “correct” it.</li>
+          <li><strong>Example:</strong> <em>Lied – sieht – zieht</em> → <strong>Er hat hiet gesagt.</strong></li>
+          <li>Press <strong>Stop</strong> → <strong>Accept &amp; save</strong>.</li>
+        </ul>
+      `,
+      items: buildTaskBItems()
+    }
+  };
 
   // ============== UI refs =============
   const $ = s => document.querySelector(s);
@@ -550,6 +631,9 @@ const TASKS = {
   const consentChk = $('#consentChk');
   const btnConsent = $('#btnConsent');
   const btnDecline = $('#btnDecline');
+
+  const stateSel = $('#stateSel');
+  const citySel  = $('#citySel');
 
   const btnPickA = $('#btnPickA');
   const btnPickB = $('#btnPickB');
@@ -615,9 +699,15 @@ const TASKS = {
   }
 
   // ============== Session / consent state ==============
+  // FIX (1): use window.crypto safely
   function randToken(len=10){
     const a = new Uint8Array(len);
-    (crypto && crypto.getRandomValues) ? crypto.getRandomValues(a) : a.forEach((_,i)=>a[i]=Math.floor(Math.random()*256));
+    const c = window.crypto;
+    if (c && c.getRandomValues) {
+      c.getRandomValues(a);
+    } else {
+      for (let i=0;i<a.length;i++) a[i] = Math.floor(Math.random()*256);
+    }
     return Array.from(a, b => (b % 36).toString(36)).join('');
   }
 
@@ -640,9 +730,10 @@ const TASKS = {
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}.${ms}`;
   }
 
+  // FIX (6): avoid replaceAll for broader compatibility
   function csvEscape(s){
     const str = String(s ?? "");
-    if (/[",\n]/.test(str)) return `"${str.replaceAll('"','""')}"`;
+    if (/[",\n]/.test(str)) return `"${str.split('"').join('""')}"`;
     return str;
   }
 
@@ -652,14 +743,18 @@ const TASKS = {
       "session_start_iso",
       "consent_time_iso",
       "participant_id",
-      "task_selected_at_pid_step"
+      "task_selected_at_pid_step",
+      "bundesland",
+      "city"
     ];
     const row = [
       sessionId,
       sessionStartIso,
       consentTimeIso,
       pid || "",
-      taskPlanned || ""
+      taskPlanned || "",
+      (stateSel ? stateSel.value : ""),
+      (citySel ? (citySel.value || "").trim() : "")
     ];
     const lines = [header.join(","), row.map(csvEscape).join(",")];
     return new Blob([lines.join("\n")], {type:"text/csv"});
@@ -712,13 +807,19 @@ const TASKS = {
     return `${pid}_${targetTok}_${lang}_${cond}_${take}.wav`;
   }
 
+  // FIX (8): revoke object URLs after downloads
   function saveLocal(blob, filename){
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
+    a.href = url;
     a.download = filename;
-    document.body.appendChild(a); a.click(); a.remove();
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
   }
 
+  // FIX (7): robust upload parsing (non-JSON responses)
   async function uploadBlob(blob, filename, pid, taskId, itemLabel){
     if (!UPLOAD_URL) throw new Error("No UPLOAD_URL set");
     const base64 = await new Promise((res,rej)=>{
@@ -734,19 +835,43 @@ const TASKS = {
       mime: blob.type || "application/octet-stream",
       b64: base64
     });
-    const r = await fetch(UPLOAD_URL, { method:"POST", headers:{ "Content-Type":"text/plain" }, body: payload });
+
+    const r = await fetch(UPLOAD_URL, {
+      method:"POST",
+      headers:{ "Content-Type":"text/plain" },
+      body: payload
+    });
+
     if (!r.ok) throw new Error("HTTP "+r.status);
-    const data = await r.json();
+
+    const text = await r.text();
+    let data;
+    try{
+      data = JSON.parse(text);
+    }catch(e){
+      throw new Error("Upload endpoint returned non-JSON response");
+    }
     if (!data.ok) throw new Error(data.error || "Upload failed");
     return data;
   }
 
   // ============== Consent flow ==============
-  consentChk.addEventListener('change', ()=>{ btnConsent.disabled = !consentChk.checked; });
-  btnConsent.disabled = !consentChk.checked;
+  function updateConsentContinue(){
+    const okChk = !!consentChk.checked;
+    const okState = stateSel && String(stateSel.value || "").trim().length > 0;
+    const okCity = citySel && String(citySel.value || "").trim().length > 0;
+    btnConsent.disabled = !(okChk && okState && okCity);
+  }
+  consentChk.addEventListener('change', updateConsentContinue);
+  if (stateSel) stateSel.addEventListener('change', updateConsentContinue);
+  if (citySel)  citySel.addEventListener('input', updateConsentContinue);
+  updateConsentContinue();
 
   btnConsent.addEventListener('click', ()=>{
     if (!consentChk.checked) { alert('Please tick the consent box to continue.'); return; }
+    if (!stateSel || !String(stateSel.value || "").trim()){ alert("Please select your Bundesland (Austria)."); return; }
+    if (!citySel || !String(citySel.value || "").trim()){ alert("Please enter your city."); return; }
+
     consentGiven = true;
     consentTimeIso = new Date().toISOString();
 
@@ -754,11 +879,12 @@ const TASKS = {
       localStorage.setItem('consented','1');
       localStorage.setItem('consent_time', consentTimeIso);
       localStorage.setItem('session_id', sessionId);
+      localStorage.setItem('bundesland', stateSel.value);
+      localStorage.setItem('city', (citySel.value||"").trim());
     }catch(e){}
 
     show(scrTaskSel);
 
-    // remove consent screen from DOM so it does not remain available later
     try{
       if (scrConsent && scrConsent.parentNode) scrConsent.parentNode.removeChild(scrConsent);
     }catch(e){}
@@ -801,8 +927,6 @@ const TASKS = {
     const consentBlob = buildConsentCsvBlob(pid, taskAtPid);
     const consentName = `${pid}__CONSENT__${isoSafeNow()}__S${sessionId}.csv`;
 
-    // show a short overlay so they don't click twice
-    setOverlay(true, "Saving consent…", "Please wait.");
     try{
       if (UPLOAD_URL){
         await uploadBlob(consentBlob, consentName, pid, "CONSENT", "consent");
@@ -813,13 +937,13 @@ const TASKS = {
     }catch(e){
       console.warn(e);
       saveLocal(consentBlob, consentName);
-      consentUploaded = true; // treat as stored (locally) to avoid duplicates
-    }finally{
-      setOverlay(false);
+      consentUploaded = true;
     }
   }
 
   btnPidContinue.addEventListener('click', async ()=>{
+    if (btnPidContinue.disabled) return;
+
     const pid = (pidEl.value||'').trim();
     if (!pid){
       alert("Please enter your Participant ID.");
@@ -828,13 +952,27 @@ const TASKS = {
       return;
     }
 
-    // Option 1: consent happened earlier, upload consent CSV once PID is known
-    await uploadConsentIfNeeded(pid);
+    btnPidContinue.disabled = true;
+    pidEl.disabled = true;
+    btnBackToTasks1.disabled = true;
+    setOverlay(true, "Processing…", "Please wait. Do not close this tab.");
 
-    const t = TASKS[selectedTaskId];
-    instrTitle.textContent = t ? t.name : "Task instructions";
-    instrBody.innerHTML = (t && t.instructionsHtml) ? t.instructionsHtml : "<p class='subtitle'>Instructions not available.</p>";
-    show(scrInstr);
+    try{
+      await uploadConsentIfNeeded(pid);
+
+      const t = TASKS[selectedTaskId];
+      instrTitle.textContent = t ? t.name : "Task instructions";
+      instrBody.innerHTML = (t && t.instructionsHtml)
+        ? t.instructionsHtml
+        : "<p class='subtitle'>Instructions not available.</p>";
+
+      show(scrInstr);
+    } finally {
+      setOverlay(false);
+      pidEl.disabled = false;
+      btnBackToTasks1.disabled = false;
+      updatePidContinue();
+    }
   });
 
   btnInstrOk.addEventListener('click', ()=>{
@@ -843,7 +981,11 @@ const TASKS = {
 
   // ============== Audio / mic init ==============
   let micReady = false;
-  let audioCtx, stream, source, workletNode, zeroGain;
+  let audioCtx = null, stream = null, source = null, workletNode = null, zeroGain = null;
+
+  // URLs to revoke (FIX 8)
+  let workletModuleUrl = null;
+  let testObjUrl = null;
 
   // Task recording state
   let recording = false;
@@ -852,6 +994,12 @@ const TASKS = {
   let sampleRate = 48000;
   let lastBlob = null;
   let lastDuration = 0;
+
+  // recording timer cap (FIX 5)
+  let recTimer = null;
+  let testTimer = null;
+  let recStartMs = 0;
+  let testStartMs = 0;
 
   // Test recording state
   let testRecording = false;
@@ -881,7 +1029,8 @@ const TASKS = {
     const bps=2, ba=numChannels*bps, br=sampleRate*ba;
     wr(view,0,'RIFF'); view.setUint32(4,36+numFrames*ba,true);
     wr(view,8,'WAVE'); wr(view,12,'fmt '); view.setUint32(16,16,true);
-    view.setUint16(20,1,true); view.setUint16(22,1,true);
+    view.setUint16(20,1,true);
+    view.setUint16(22,numChannels,true); /* (was hardcoded 1) */
     view.setUint32(24,sampleRate,true); view.setUint32(28,br,true);
     view.setUint16(32,ba,true); view.setUint16(34,16,true);
     wr(view,36,'data'); view.setUint32(40,numFrames*ba,true);
@@ -908,6 +1057,14 @@ const TASKS = {
     testBlob = null;
     testReady = false;
 
+    if (testTimer){ clearInterval(testTimer); testTimer = null; }
+
+    // FIX (8): revoke test object URL
+    if (testObjUrl){
+      try{ URL.revokeObjectURL(testObjUrl); }catch(e){}
+      testObjUrl = null;
+    }
+
     setTestStatus("test: not recorded");
     btnTestStart.disabled = !micReady;
     btnTestStop.disabled = true;
@@ -916,85 +1073,138 @@ const TASKS = {
     testPlayer.style.display = "none";
     testPlayer.src = "";
 
-    // Require at least one test before beginning
     btnBeginTask.disabled = true;
   }
 
-  async function initMic(){
+  function cleanupAudioOnFailure(){
     try{
-      stream = await navigator.mediaDevices.getUserMedia({audio:{
-        channelCount:1,
-        noiseSuppression:false,
-        echoCancellation:false,
-        autoGainControl:false,
-        sampleRate:48000
-      }});
-    }catch(e){
-      alert("Microphone permission denied or unavailable.");
+      if (stream) stream.getTracks().forEach(t=>t.stop());
+    }catch(e){}
+    stream = null;
+
+    try{
+      if (audioCtx && audioCtx.state !== 'closed') audioCtx.close();
+    }catch(e){}
+    audioCtx = null;
+
+    source = null;
+    workletNode = null;
+    zeroGain = null;
+
+    // revoke worklet URL if set
+    if (workletModuleUrl){
+      try{ URL.revokeObjectURL(workletModuleUrl); }catch(e){}
+      workletModuleUrl = null;
+    }
+
+    micReady = false;
+  }
+
+  async function initMic(){
+    if (micReady) return;
+
+    btnInit.disabled = true;
+    setMicStatus("mic: starting…");
+
+    try{
+      // FIX (3): use "ideal" constraints (less likely to throw OverconstrainedError)
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio:{
+          channelCount: { ideal: 1 },
+          sampleRate: { ideal: 48000 },
+          noiseSuppression: false,
+          echoCancellation: false,
+          autoGainControl: false
+        }
+      });
+
+      audioCtx = new (window.AudioContext||window.webkitAudioContext)({ sampleRate: 48000 });
+      try{ await audioCtx.resume(); }catch(e){}
+
+      sampleRate = audioCtx.sampleRate;
+      srEl.textContent = `sr: ${sampleRate} Hz`;
+
+      // FIX (2): wrap complete worklet setup in try/catch
+      try{
+        source = audioCtx.createMediaStreamSource(stream);
+
+        const workletCode = `
+          class P extends AudioWorkletProcessor{
+            process(inputs){
+              const ch = inputs[0] && inputs[0][0];
+              if (ch) this.port.postMessage(ch);
+              return true;
+            }
+          }
+          registerProcessor('rec-p', P);
+        `;
+        workletModuleUrl = URL.createObjectURL(new Blob([workletCode],{type:'application/javascript'}));
+        try{
+          await audioCtx.audioWorklet.addModule(workletModuleUrl);
+        } finally {
+          // FIX (8): revoke worklet module blob URL after addModule
+          try{ URL.revokeObjectURL(workletModuleUrl); }catch(e){}
+          workletModuleUrl = null;
+        }
+
+        workletNode = new AudioWorkletNode(audioCtx,'rec-p');
+
+        zeroGain = audioCtx.createGain();
+        zeroGain.gain.value = 0.0;
+
+        source.connect(workletNode);
+        workletNode.connect(zeroGain);
+        zeroGain.connect(audioCtx.destination);
+
+        workletNode.port.onmessage = (e)=>{
+          const d = e.data;
+
+          if (testRecording){
+            const copy = new Float32Array(d.length);
+            copy.set(d);
+            testBuffers.push(copy);
+            testTotalLength += copy.length;
+            computeLevel(copy);
+            return;
+          }
+          if (recording){
+            const copy = new Float32Array(d.length);
+            copy.set(d);
+            recBuffers.push(copy);
+            totalLength += copy.length;
+            computeLevel(copy);
+            return;
+          }
+          computeLevel(d);
+        };
+      } catch (e){
+        console.error(e);
+        throw new Error("Audio initialisation failed (worklet unsupported or blocked).");
+      }
+
+      setMicStatus("mic: ready");
+      micReady = true;
+
+      testBox.style.display = "block";
+      resetTestUI();
+
+    } catch (e){
       console.error(e);
+      cleanupAudioOnFailure();
       setMicStatus("mic: error");
+
+      alert(
+        "Microphone initialisation failed.\n\n" +
+        "Please try a recent Chrome/Edge/Firefox, reload the page, and make sure microphone permissions are allowed."
+      );
+
+      // allow retry
+      btnInit.disabled = false;
       return;
     }
 
-    audioCtx = new (window.AudioContext||window.webkitAudioContext)({sampleRate:48000});
-    try{ await audioCtx.resume(); }catch(e){}
-
-    sampleRate = audioCtx.sampleRate;
-    srEl.textContent = `sr: ${sampleRate} Hz`;
-
-    source = audioCtx.createMediaStreamSource(stream);
-
-    const workletCode = `
-      class P extends AudioWorkletProcessor{
-        process(inputs){
-          const ch = inputs[0] && inputs[0][0];
-          if (ch) this.port.postMessage(ch);
-          return true;
-        }
-      }
-      registerProcessor('rec-p', P);
-    `;
-    const url = URL.createObjectURL(new Blob([workletCode],{type:'application/javascript'}));
-    await audioCtx.audioWorklet.addModule(url);
-
-    workletNode = new AudioWorkletNode(audioCtx,'rec-p');
-
-    zeroGain = audioCtx.createGain();
-    zeroGain.gain.value = 0.0;
-
-    source.connect(workletNode);
-    workletNode.connect(zeroGain);
-    zeroGain.connect(audioCtx.destination);
-
-    workletNode.port.onmessage = (e)=>{
-      const d = e.data;
-
-      if (testRecording){
-        const copy = new Float32Array(d.length);
-        copy.set(d);
-        testBuffers.push(copy);
-        testTotalLength += copy.length;
-        computeLevel(copy);
-        return;
-      }
-      if (recording){
-        const copy = new Float32Array(d.length);
-        copy.set(d);
-        recBuffers.push(copy);
-        totalLength += copy.length;
-        computeLevel(copy);
-        return;
-      }
-
-      computeLevel(d);
-    };
-
-    setMicStatus("mic: ready");
-    micReady = true;
+    // if success: keep init disabled
     btnInit.disabled = true;
-
-    testBox.style.display = "block";
-    resetTestUI();
   }
 
   btnInit.addEventListener('click', initMic);
@@ -1022,11 +1232,22 @@ const TASKS = {
     testPlayer.style.display = "none";
     testPlayer.src = "";
     btnBeginTask.disabled = true;
+
+    // FIX (5): cap test recording duration
+    if (testTimer) clearInterval(testTimer);
+    testStartMs = Date.now();
+    testTimer = setInterval(()=>{
+      if (testRecording && (Date.now() - testStartMs) >= MAX_REC_SECONDS * 1000){
+        stopTest();
+      }
+    }, 250);
   }
 
   function stopTest(){
     if (!testRecording) return;
     testRecording = false;
+
+    if (testTimer){ clearInterval(testTimer); testTimer = null; }
 
     testBlob = encodeWavFromBuffers(testBuffers, testTotalLength);
     testReady = true;
@@ -1038,9 +1259,15 @@ const TASKS = {
     btnTestRedo.disabled = false;
 
     testPlayer.style.display = "block";
-    testPlayer.src = URL.createObjectURL(testBlob);
 
-    // Allow starting the actual task now
+    // FIX (8): revoke previous test URL before replacing
+    if (testObjUrl){
+      try{ URL.revokeObjectURL(testObjUrl); }catch(e){}
+      testObjUrl = null;
+    }
+    testObjUrl = URL.createObjectURL(testBlob);
+    testPlayer.src = testObjUrl;
+
     btnBeginTask.disabled = false;
   }
 
@@ -1089,13 +1316,16 @@ const TASKS = {
         span.textContent = w;
         primesWords.appendChild(span);
       }
-      groupTitleEl.textContent = "Then record the sentence:";
-      runHint.innerHTML = 'Say the three words first. Then press <strong>Start recording</strong>, read the sentence once, press <strong>Stop</strong>, then <strong>Accept &amp; save</strong>.';
+
+      groupTitleEl.textContent = "Record the 3 words and then the sentence (in one recording):";
+      runHint.innerHTML =
+        'Press <strong>Start recording</strong>. <strong>Record the three words above and the sentence.</strong> Press <strong>Stop</strong>, then <strong>Accept &amp; save</strong>.';
     }else{
       primesBox.style.display = "none";
       primesWords.innerHTML = "";
       groupTitleEl.textContent = "Read the sentence aloud:";
-      runHint.innerHTML = 'Press <strong>Start recording</strong>, read the sentence once, press <strong>Stop</strong>, then <strong>Accept &amp; save</strong>.';
+      runHint.innerHTML =
+        'Press <strong>Start recording</strong>, read the sentence once, press <strong>Stop</strong>, then <strong>Accept &amp; save</strong>.';
     }
 
     promptDisplay.textContent = currentItem ? currentItem.promptText : "—";
@@ -1105,6 +1335,8 @@ const TASKS = {
     totalLength = 0;
     lastBlob = null;
     lastDuration = 0;
+
+    if (recTimer){ clearInterval(recTimer); recTimer = null; }
 
     setRunStatus("idle");
     btnStartRec.disabled = (N === 0);
@@ -1145,11 +1377,22 @@ const TASKS = {
     btnStopRec.disabled = false;
     btnAccept.disabled = true;
     btnNext.disabled = true;
+
+    // FIX (5): cap recording duration at 30 seconds
+    if (recTimer) clearInterval(recTimer);
+    recStartMs = Date.now();
+    recTimer = setInterval(()=>{
+      if (recording && (Date.now() - recStartMs) >= MAX_REC_SECONDS * 1000){
+        stopRecording();
+      }
+    }, 250);
   }
 
   function stopRecording(){
     if (!recording) return;
     recording = false;
+
+    if (recTimer){ clearInterval(recTimer); recTimer = null; }
 
     lastBlob = encodeWav();
     lastDuration = totalLength / sampleRate;
