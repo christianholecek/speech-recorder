@@ -362,6 +362,18 @@
       <h2>Microphone setup</h2>
       <p class="subtitle">Click the button below and allow microphone access in your browser.</p>
 
+      <!-- FIX C: explicit microphone picker -->
+      <div style="margin-top:10px">
+        <label for="micSel">Microphone device</label>
+        <div class="row">
+          <select id="micSel" disabled>
+            <option value="" selected>Enable microphone to list devices…</option>
+          </select>
+          <button id="btnRefreshMics" class="btn-ghost" type="button" disabled>Refresh list</button>
+        </div>
+        <p class="footer" style="margin-top:6px">If your recordings are silent, choose a different device and repeat the test.</p>
+      </div>
+
       <div class="row" style="margin-top:12px">
         <button id="btnInit">Enable microphone</button>
         <button id="btnBeginTask" disabled>Begin task</button>
@@ -450,6 +462,10 @@
 
   // Max recording duration safety cap (seconds)
   const MAX_REC_SECONDS = 30;
+
+  // FIX B: silence detection threshold (peak amplitude in [-1,1])
+  // 0.01 is conservative: blocks "all-zero" and near-mute recordings but accepts normal quiet speech.
+  const SILENCE_PEAK_THRESHOLD = 0.01;
 
   // -------- Task A (English) prompts in fixed pseudo-random order --------
   const TASK_A_SENTENCES = [
@@ -652,6 +668,10 @@
   const statusEl = $('#status');
   const srEl = $('#sr');
   const levelEl = $('#level');
+
+  // FIX C: mic picker refs
+  const micSel = $('#micSel');
+  const btnRefreshMics = $('#btnRefreshMics');
 
   // Test recording UI
   const testBox = $('#testBox');
@@ -983,6 +1003,9 @@
   let micReady = false;
   let audioCtx = null, stream = null, source = null, workletNode = null, zeroGain = null;
 
+  // remember selected mic (FIX C)
+  let selectedDeviceId = "";
+
   // URLs to revoke (FIX 8)
   let workletModuleUrl = null;
   let testObjUrl = null;
@@ -994,6 +1017,11 @@
   let sampleRate = 48000;
   let lastBlob = null;
   let lastDuration = 0;
+
+  // FIX B: track peaks to detect silent recordings
+  let recPeak = 0;
+  let testPeak = 0;
+  let lastRecPeak = 0;
 
   // recording timer cap (FIX 5)
   let recTimer = null;
@@ -1017,6 +1045,17 @@
     levelEl.textContent = `level: ${db.toFixed(1)} dBFS`;
   }
 
+  // FIX B: peak update helper
+  function updatePeak(arr, isTest){
+    let peak = 0;
+    for (let i=0;i<arr.length;i++){
+      const a = Math.abs(arr[i]);
+      if (a > peak) peak = a;
+    }
+    if (isTest) testPeak = Math.max(testPeak, peak);
+    else recPeak = Math.max(recPeak, peak);
+  }
+
   function floatTo16BitPCM(view, offset, input){
     for (let i = 0; i < input.length; i++, offset += 2) {
       let s = Math.max(-1, Math.min(1, input[i]));
@@ -1030,7 +1069,7 @@
     wr(view,0,'RIFF'); view.setUint32(4,36+numFrames*ba,true);
     wr(view,8,'WAVE'); wr(view,12,'fmt '); view.setUint32(16,16,true);
     view.setUint16(20,1,true);
-    view.setUint16(22,numChannels,true); /* (was hardcoded 1) */
+    view.setUint16(22,numChannels,true);
     view.setUint32(24,sampleRate,true); view.setUint32(28,br,true);
     view.setUint16(32,ba,true); view.setUint16(34,16,true);
     wr(view,36,'data'); view.setUint32(40,numFrames*ba,true);
@@ -1056,6 +1095,7 @@
     testTotalLength = 0;
     testBlob = null;
     testReady = false;
+    testPeak = 0;
 
     if (testTimer){ clearInterval(testTimer); testTimer = null; }
 
@@ -1098,6 +1138,122 @@
     }
 
     micReady = false;
+
+    // FIX C: disable mic picker on failure
+    if (micSel){
+      micSel.innerHTML = '<option value="" selected>Enable microphone to list devices…</option>';
+      micSel.disabled = true;
+    }
+    if (btnRefreshMics) btnRefreshMics.disabled = true;
+  }
+
+  // FIX C: populate mic list
+  async function populateMicList(){
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+
+    let devices = [];
+    try{
+      devices = await navigator.mediaDevices.enumerateDevices();
+    }catch(e){
+      return;
+    }
+    const inputs = devices.filter(d => d.kind === "audioinput");
+
+    if (!micSel) return;
+    micSel.innerHTML = "";
+
+    if (inputs.length === 0){
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "No microphone devices found";
+      micSel.appendChild(opt);
+      micSel.disabled = true;
+      return;
+    }
+
+    inputs.forEach((d, idx)=>{
+      const opt = document.createElement("option");
+      opt.value = d.deviceId;
+      opt.textContent = d.label || `Microphone ${idx+1}`;
+      micSel.appendChild(opt);
+    });
+
+    // try to select current stream device if possible
+    try{
+      const track = stream && stream.getAudioTracks && stream.getAudioTracks()[0];
+      const settings = track && track.getSettings ? track.getSettings() : {};
+      const currentId = settings.deviceId || selectedDeviceId || "";
+      if (currentId){
+        micSel.value = currentId;
+        selectedDeviceId = micSel.value || selectedDeviceId;
+      } else {
+        selectedDeviceId = micSel.value;
+      }
+    }catch(e){
+      selectedDeviceId = micSel.value;
+    }
+
+    micSel.disabled = false;
+    if (btnRefreshMics) btnRefreshMics.disabled = false;
+  }
+
+  // FIX C: switch mic without rebuilding everything
+  async function switchMic(deviceId){
+    if (!deviceId || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+    if (!audioCtx || !workletNode) return;
+
+    // stop test/recording and reset UI state
+    if (testRecording) { alert("Please stop the test first."); return; }
+    if (recording) { alert("Please stop the recording first."); return; }
+
+    resetTestUI(); // force a new test after switching devices
+    setMicStatus("mic: switching…");
+
+    // stop old stream
+    try{ if (stream) stream.getTracks().forEach(t=>t.stop()); }catch(e){}
+    stream = null;
+
+    // disconnect old source
+    try{ if (source) source.disconnect(); }catch(e){}
+    source = null;
+
+    // new stream with exact deviceId
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio:{
+          deviceId: { exact: deviceId },
+          channelCount: { ideal: 1 },
+          sampleRate: { ideal: 48000 },
+          noiseSuppression: false,
+          echoCancellation: false,
+          autoGainControl: false
+        }
+      });
+
+      source = audioCtx.createMediaStreamSource(stream);
+
+      // keep the same workletNode/zeroGain pipeline
+      source.connect(workletNode);
+
+      selectedDeviceId = deviceId;
+
+      setMicStatus("mic: ready");
+      micReady = true;
+
+      // show test box and enable test start
+      testBox.style.display = "block";
+      resetTestUI();
+
+      // refresh list (labels might update)
+      await populateMicList();
+    }catch(e){
+      console.error(e);
+      setMicStatus("mic: error");
+      alert("Switching microphone failed. Please try a different device or reload the page.");
+      // try to keep mic in a safe state
+      cleanupAudioOnFailure();
+      btnInit.disabled = false;
+    }
   }
 
   async function initMic(){
@@ -1108,15 +1264,19 @@
 
     try{
       // FIX (3): use "ideal" constraints (less likely to throw OverconstrainedError)
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio:{
-          channelCount: { ideal: 1 },
-          sampleRate: { ideal: 48000 },
-          noiseSuppression: false,
-          echoCancellation: false,
-          autoGainControl: false
-        }
-      });
+      // FIX C: if user already picked a deviceId, request it explicitly
+      const audioConstraints = {
+        channelCount: { ideal: 1 },
+        sampleRate: { ideal: 48000 },
+        noiseSuppression: false,
+        echoCancellation: false,
+        autoGainControl: false
+      };
+      if (selectedDeviceId){
+        audioConstraints.deviceId = { exact: selectedDeviceId };
+      }
+
+      stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
 
       audioCtx = new (window.AudioContext||window.webkitAudioContext)({ sampleRate: 48000 });
       try{ await audioCtx.resume(); }catch(e){}
@@ -1128,11 +1288,26 @@
       try{
         source = audioCtx.createMediaStreamSource(stream);
 
+        // FIX A: mix all channels down to mono in the worklet
         const workletCode = `
           class P extends AudioWorkletProcessor{
             process(inputs){
-              const ch = inputs[0] && inputs[0][0];
-              if (ch) this.port.postMessage(ch);
+              const input = inputs[0];
+              if (!input || input.length === 0) return true;
+
+              const nCh = input.length;
+              const n = input[0].length;
+              const mono = new Float32Array(n);
+
+              for (let ch = 0; ch < nCh; ch++){
+                const data = input[ch];
+                if (!data) continue;
+                for (let i = 0; i < n; i++){
+                  mono[i] += data[i] / nCh;
+                }
+              }
+
+              this.port.postMessage(mono);
               return true;
             }
           }
@@ -1158,6 +1333,10 @@
 
         workletNode.port.onmessage = (e)=>{
           const d = e.data;
+
+          // FIX B: peak tracking for silence detection
+          if (testRecording) updatePeak(d, true);
+          if (recording) updatePeak(d, false);
 
           if (testRecording){
             const copy = new Float32Array(d.length);
@@ -1185,6 +1364,9 @@
       setMicStatus("mic: ready");
       micReady = true;
 
+      // FIX C: enable mic picker and populate list
+      await populateMicList();
+
       testBox.style.display = "block";
       resetTestUI();
 
@@ -1209,6 +1391,23 @@
 
   btnInit.addEventListener('click', initMic);
 
+  // FIX C: refresh + change handlers
+  if (btnRefreshMics){
+    btnRefreshMics.addEventListener('click', async ()=>{
+      await populateMicList();
+    });
+  }
+  if (micSel){
+    micSel.addEventListener('change', ()=>{
+      const id = micSel.value || "";
+      if (!id) return;
+      selectedDeviceId = id;
+      if (micReady){
+        switchMic(id);
+      }
+    });
+  }
+
   function startTest(){
     if (!micReady || !audioCtx) return;
     if (audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
@@ -1222,6 +1421,7 @@
     testTotalLength = 0;
     testBlob = null;
     testReady = false;
+    testPeak = 0; // FIX B
 
     setTestStatus("test: recording…");
     btnTestStart.disabled = true;
@@ -1248,6 +1448,17 @@
     testRecording = false;
 
     if (testTimer){ clearInterval(testTimer); testTimer = null; }
+
+    // FIX B: block silent test
+    if (testPeak < SILENCE_PEAK_THRESHOLD){
+      setTestStatus("test: no audio detected ⚠");
+      alert(
+        "No audio detected in the test.\n\n" +
+        "Please select a different microphone device (above) and try again, or check OS/browser microphone settings."
+      );
+      resetTestUI();
+      return;
+    }
 
     testBlob = encodeWavFromBuffers(testBuffers, testTotalLength);
     testReady = true;
@@ -1335,6 +1546,8 @@
     totalLength = 0;
     lastBlob = null;
     lastDuration = 0;
+    recPeak = 0;
+    lastRecPeak = 0;
 
     if (recTimer){ clearInterval(recTimer); recTimer = null; }
 
@@ -1369,6 +1582,7 @@
     totalLength = 0;
     lastBlob = null;
     lastDuration = 0;
+    recPeak = 0; // FIX B
 
     recording = true;
     setRunStatus("recording…");
@@ -1394,8 +1608,27 @@
 
     if (recTimer){ clearInterval(recTimer); recTimer = null; }
 
+    // FIX B: block silent task recording (do not create/upload a silent file)
+    if (recPeak < SILENCE_PEAK_THRESHOLD){
+      setRunStatus("no audio detected ⚠");
+      alert(
+        "No audio detected in this recording.\n\n" +
+        "Please check that your microphone is working (you should see the level meter moving), then record again.\n" +
+        "If needed, go back to the microphone page and choose a different device."
+      );
+
+      // reset recording result so they must redo
+      lastBlob = null;
+      lastDuration = 0;
+      btnStopRec.disabled = true;
+      btnAccept.disabled = true;
+      btnStartRec.disabled = false;
+      return;
+    }
+
     lastBlob = encodeWav();
     lastDuration = totalLength / sampleRate;
+    lastRecPeak = recPeak;
 
     setRunStatus("stopped");
     btnStopRec.disabled = true;
@@ -1405,6 +1638,15 @@
   async function acceptAndSave(){
     if (!lastBlob || !currentItem){
       alert("Please record the sentence first.");
+      return;
+    }
+
+    // FIX B: extra guard (should already be blocked earlier)
+    if (lastRecPeak < SILENCE_PEAK_THRESHOLD){
+      alert("This recording appears to contain no audio. Please record again.");
+      lastBlob = null;
+      btnAccept.disabled = true;
+      btnStartRec.disabled = false;
       return;
     }
 
