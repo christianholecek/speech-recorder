@@ -362,7 +362,7 @@
       <h2>Microphone setup</h2>
       <p class="subtitle">Click the button below and allow microphone access in your browser.</p>
 
-      <!-- FIX C: explicit microphone picker -->
+      <!-- Mic picker -->
       <div style="margin-top:10px">
         <label for="micSel">Microphone device</label>
         <div class="row">
@@ -377,6 +377,10 @@
       <div class="row" style="margin-top:12px">
         <button id="btnInit">Enable microphone</button>
         <button id="btnBeginTask" disabled>Begin task</button>
+
+        <!-- NEW: return to the same item after mic changes -->
+        <button id="btnBackToTask" class="btn-ghost" type="button" style="display:none">Back to task</button>
+
         <span class="pill" id="status">mic: not started</span>
         <span class="pill" id="sr">sr: —</span>
         <span class="pill" id="level">level: —</span>
@@ -426,6 +430,9 @@
         <button id="btnStopRec" class="btn-ghost" disabled>Stop</button>
         <button id="btnAccept" disabled>Accept & save</button>
         <button id="btnNext" class="btn-ghost" disabled>Next ▶</button>
+
+        <!-- NEW: go to mic setup without losing itemIdx -->
+        <button id="btnGoMic" class="btn-ghost" type="button">Microphone setup</button>
       </div>
     </div>
 
@@ -463,8 +470,7 @@
   // Max recording duration safety cap (seconds)
   const MAX_REC_SECONDS = 30;
 
-  // FIX B: silence detection threshold (peak amplitude in [-1,1])
-  // 0.01 is conservative: blocks "all-zero" and near-mute recordings but accepts normal quiet speech.
+  // Silence detection threshold (peak amplitude in [-1,1])
   const SILENCE_PEAK_THRESHOLD = 0.01;
 
   // -------- Task A (English) prompts in fixed pseudo-random order --------
@@ -665,11 +671,12 @@
 
   const btnInit = $('#btnInit');
   const btnBeginTask = $('#btnBeginTask');
+  const btnBackToTask = $('#btnBackToTask');
+
   const statusEl = $('#status');
   const srEl = $('#sr');
   const levelEl = $('#level');
 
-  // FIX C: mic picker refs
   const micSel = $('#micSel');
   const btnRefreshMics = $('#btnRefreshMics');
 
@@ -696,6 +703,7 @@
   const btnStopRec  = $('#btnStopRec');
   const btnAccept   = $('#btnAccept');
   const btnNext     = $('#btnNext');
+  const btnGoMic    = $('#btnGoMic');
 
   const summaryEl = $('#summary');
   const btnBackToTasksDone = $('#btnBackToTasksDone');
@@ -719,7 +727,6 @@
   }
 
   // ============== Session / consent state ==============
-  // FIX (1): use window.crypto safely
   function randToken(len=10){
     const a = new Uint8Array(len);
     const c = window.crypto;
@@ -743,6 +750,9 @@
   let itemIdx = 0;
   let currentItem = null;
 
+  // NEW: remember that we came from the run screen
+  let returnToRunAfterMic = false;
+
   function isoSafeNow(){
     const d = new Date();
     const pad = (n,w=2)=>String(n).padStart(w,'0');
@@ -750,7 +760,6 @@
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}.${ms}`;
   }
 
-  // FIX (6): avoid replaceAll for broader compatibility
   function csvEscape(s){
     const str = String(s ?? "");
     if (/[",\n]/.test(str)) return `"${str.split('"').join('""')}"`;
@@ -827,7 +836,6 @@
     return `${pid}_${targetTok}_${lang}_${cond}_${take}.wav`;
   }
 
-  // FIX (8): revoke object URLs after downloads
   function saveLocal(blob, filename){
     const a = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -839,7 +847,6 @@
     setTimeout(()=>URL.revokeObjectURL(url), 2000);
   }
 
-  // FIX (7): robust upload parsing (non-JSON responses)
   async function uploadBlob(blob, filename, pid, taskId, itemLabel){
     if (!UPLOAD_URL) throw new Error("No UPLOAD_URL set");
     const base64 = await new Promise((res,rej)=>{
@@ -1003,14 +1010,11 @@
   let micReady = false;
   let audioCtx = null, stream = null, source = null, workletNode = null, zeroGain = null;
 
-  // remember selected mic (FIX C)
   let selectedDeviceId = "";
 
-  // URLs to revoke (FIX 8)
   let workletModuleUrl = null;
   let testObjUrl = null;
 
-  // Task recording state
   let recording = false;
   let recBuffers = [];
   let totalLength = 0;
@@ -1018,18 +1022,15 @@
   let lastBlob = null;
   let lastDuration = 0;
 
-  // FIX B: track peaks to detect silent recordings
   let recPeak = 0;
   let testPeak = 0;
   let lastRecPeak = 0;
 
-  // recording timer cap (FIX 5)
   let recTimer = null;
   let testTimer = null;
   let recStartMs = 0;
   let testStartMs = 0;
 
-  // Test recording state
   let testRecording = false;
   let testBuffers = [];
   let testTotalLength = 0;
@@ -1045,7 +1046,6 @@
     levelEl.textContent = `level: ${db.toFixed(1)} dBFS`;
   }
 
-  // FIX B: peak update helper
   function updatePeak(arr, isTest){
     let peak = 0;
     for (let i=0;i<arr.length;i++){
@@ -1099,7 +1099,6 @@
 
     if (testTimer){ clearInterval(testTimer); testTimer = null; }
 
-    // FIX (8): revoke test object URL
     if (testObjUrl){
       try{ URL.revokeObjectURL(testObjUrl); }catch(e){}
       testObjUrl = null;
@@ -1114,6 +1113,11 @@
     testPlayer.src = "";
 
     btnBeginTask.disabled = true;
+
+    // If we are in "return to run" mode, show the Back-to-task button
+    if (btnBackToTask){
+      btnBackToTask.style.display = returnToRunAfterMic ? "inline-block" : "none";
+    }
   }
 
   function cleanupAudioOnFailure(){
@@ -1131,7 +1135,6 @@
     workletNode = null;
     zeroGain = null;
 
-    // revoke worklet URL if set
     if (workletModuleUrl){
       try{ URL.revokeObjectURL(workletModuleUrl); }catch(e){}
       workletModuleUrl = null;
@@ -1139,7 +1142,6 @@
 
     micReady = false;
 
-    // FIX C: disable mic picker on failure
     if (micSel){
       micSel.innerHTML = '<option value="" selected>Enable microphone to list devices…</option>';
       micSel.disabled = true;
@@ -1147,7 +1149,6 @@
     if (btnRefreshMics) btnRefreshMics.disabled = true;
   }
 
-  // FIX C: populate mic list
   async function populateMicList(){
     if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
 
@@ -1178,7 +1179,6 @@
       micSel.appendChild(opt);
     });
 
-    // try to select current stream device if possible
     try{
       const track = stream && stream.getAudioTracks && stream.getAudioTracks()[0];
       const settings = track && track.getSettings ? track.getSettings() : {};
@@ -1197,27 +1197,22 @@
     if (btnRefreshMics) btnRefreshMics.disabled = false;
   }
 
-  // FIX C: switch mic without rebuilding everything
   async function switchMic(deviceId){
     if (!deviceId || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
     if (!audioCtx || !workletNode) return;
 
-    // stop test/recording and reset UI state
     if (testRecording) { alert("Please stop the test first."); return; }
     if (recording) { alert("Please stop the recording first."); return; }
 
-    resetTestUI(); // force a new test after switching devices
+    resetTestUI();
     setMicStatus("mic: switching…");
 
-    // stop old stream
     try{ if (stream) stream.getTracks().forEach(t=>t.stop()); }catch(e){}
     stream = null;
 
-    // disconnect old source
     try{ if (source) source.disconnect(); }catch(e){}
     source = null;
 
-    // new stream with exact deviceId
     try{
       stream = await navigator.mediaDevices.getUserMedia({
         audio:{
@@ -1231,8 +1226,6 @@
       });
 
       source = audioCtx.createMediaStreamSource(stream);
-
-      // keep the same workletNode/zeroGain pipeline
       source.connect(workletNode);
 
       selectedDeviceId = deviceId;
@@ -1240,17 +1233,14 @@
       setMicStatus("mic: ready");
       micReady = true;
 
-      // show test box and enable test start
       testBox.style.display = "block";
       resetTestUI();
 
-      // refresh list (labels might update)
       await populateMicList();
     }catch(e){
       console.error(e);
       setMicStatus("mic: error");
       alert("Switching microphone failed. Please try a different device or reload the page.");
-      // try to keep mic in a safe state
       cleanupAudioOnFailure();
       btnInit.disabled = false;
     }
@@ -1263,8 +1253,6 @@
     setMicStatus("mic: starting…");
 
     try{
-      // FIX (3): use "ideal" constraints (less likely to throw OverconstrainedError)
-      // FIX C: if user already picked a deviceId, request it explicitly
       const audioConstraints = {
         channelCount: { ideal: 1 },
         sampleRate: { ideal: 48000 },
@@ -1284,7 +1272,6 @@
       sampleRate = audioCtx.sampleRate;
       srEl.textContent = `sr: ${sampleRate} Hz`;
 
-      // FIX (2): wrap complete worklet setup in try/catch
       try{
         source = audioCtx.createMediaStreamSource(stream);
 
@@ -1317,7 +1304,6 @@
         try{
           await audioCtx.audioWorklet.addModule(workletModuleUrl);
         } finally {
-          // FIX (8): revoke worklet module blob URL after addModule
           try{ URL.revokeObjectURL(workletModuleUrl); }catch(e){}
           workletModuleUrl = null;
         }
@@ -1334,7 +1320,6 @@
         workletNode.port.onmessage = (e)=>{
           const d = e.data;
 
-          // FIX B: peak tracking for silence detection
           if (testRecording) updatePeak(d, true);
           if (recording) updatePeak(d, false);
 
@@ -1364,7 +1349,6 @@
       setMicStatus("mic: ready");
       micReady = true;
 
-      // FIX C: enable mic picker and populate list
       await populateMicList();
 
       testBox.style.display = "block";
@@ -1380,18 +1364,15 @@
         "Please try a recent Chrome/Edge/Firefox, reload the page, and make sure microphone permissions are allowed."
       );
 
-      // allow retry
       btnInit.disabled = false;
       return;
     }
 
-    // if success: keep init disabled
     btnInit.disabled = true;
   }
 
   btnInit.addEventListener('click', initMic);
 
-  // FIX C: refresh + change handlers
   if (btnRefreshMics){
     btnRefreshMics.addEventListener('click', async ()=>{
       await populateMicList();
@@ -1421,7 +1402,7 @@
     testTotalLength = 0;
     testBlob = null;
     testReady = false;
-    testPeak = 0; // FIX B
+    testPeak = 0;
 
     setTestStatus("test: recording…");
     btnTestStart.disabled = true;
@@ -1433,7 +1414,6 @@
     testPlayer.src = "";
     btnBeginTask.disabled = true;
 
-    // FIX (5): cap test recording duration
     if (testTimer) clearInterval(testTimer);
     testStartMs = Date.now();
     testTimer = setInterval(()=>{
@@ -1471,7 +1451,6 @@
 
     testPlayer.style.display = "block";
 
-    // FIX (8): revoke previous test URL before replacing
     if (testObjUrl){
       try{ URL.revokeObjectURL(testObjUrl); }catch(e){}
       testObjUrl = null;
@@ -1496,6 +1475,52 @@
   btnTestPlay.addEventListener('click', playTest);
   btnTestRedo.addEventListener('click', redoTest);
 
+  // ============== Run task navigation (NEW) ==============
+  function goToMicFromRun(){
+    if (recording){
+      alert("Please stop the recording first.");
+      return;
+    }
+    if (testRecording){
+      alert("Please stop the test recording first.");
+      return;
+    }
+
+    returnToRunAfterMic = true;
+
+    // require a fresh test after coming back to mic setup
+    resetTestUI();
+
+    if (btnBackToTask){
+      btnBackToTask.style.display = "inline-block";
+    }
+
+    show(scrMic);
+  }
+
+  if (btnGoMic){
+    btnGoMic.addEventListener('click', goToMicFromRun);
+  }
+
+  if (btnBackToTask){
+    btnBackToTask.addEventListener('click', ()=>{
+      if (!micReady){
+        alert('Please click "Enable microphone" first.');
+        return;
+      }
+      if (!testReady){
+        alert("Please complete the test recording before returning to the task.");
+        return;
+      }
+
+      btnBackToTask.style.display = "none";
+      returnToRunAfterMic = false;
+
+      show(scrRun);
+      renderCurrentItem(); // redraw current item, itemIdx unchanged
+    });
+  }
+
   btnBeginTask.addEventListener('click', ()=>{
     if (!micReady || !audioCtx || !stream){
       alert('Please click "Enable microphone" first.');
@@ -1505,6 +1530,17 @@
       alert('Please complete the test recording first (or redo it if needed).');
       return;
     }
+
+    // If user came here from the run screen, return to the same item
+    if (returnToRunAfterMic){
+      if (btnBackToTask) btnBackToTask.style.display = "none";
+      returnToRunAfterMic = false;
+
+      show(scrRun);
+      renderCurrentItem();
+      return;
+    }
+
     startTaskRun();
   });
 
@@ -1582,7 +1618,7 @@
     totalLength = 0;
     lastBlob = null;
     lastDuration = 0;
-    recPeak = 0; // FIX B
+    recPeak = 0;
 
     recording = true;
     setRunStatus("recording…");
@@ -1592,7 +1628,6 @@
     btnAccept.disabled = true;
     btnNext.disabled = true;
 
-    // FIX (5): cap recording duration at 30 seconds
     if (recTimer) clearInterval(recTimer);
     recStartMs = Date.now();
     recTimer = setInterval(()=>{
@@ -1608,16 +1643,14 @@
 
     if (recTimer){ clearInterval(recTimer); recTimer = null; }
 
-    // FIX B: block silent task recording (do not create/upload a silent file)
+    // FIX B: block silent task recording
     if (recPeak < SILENCE_PEAK_THRESHOLD){
       setRunStatus("no audio detected ⚠");
       alert(
         "No audio detected in this recording.\n\n" +
-        "Please check that your microphone is working (you should see the level meter moving), then record again.\n" +
-        "If needed, go back to the microphone page and choose a different device."
+        "Please check that your microphone is working (you should see the level meter moving), then record again.\n"
       );
 
-      // reset recording result so they must redo
       lastBlob = null;
       lastDuration = 0;
       btnStopRec.disabled = true;
@@ -1641,7 +1674,6 @@
       return;
     }
 
-    // FIX B: extra guard (should already be blocked earlier)
     if (lastRecPeak < SILENCE_PEAK_THRESHOLD){
       alert("This recording appears to contain no audio. Please record again.");
       lastBlob = null;
