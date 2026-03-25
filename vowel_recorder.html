@@ -1347,14 +1347,17 @@
   }
 
   $('#btnQuestionnaireDone').addEventListener('click', async ()=>{
-    if (!requireValue('#pid', 'Please enter the participant ID.')) return;
-    const pid = (pidEl.value || "").trim();
-    const qData = collectQuestionnaireData();
-    const qBlob = buildQuestionnaireCsvBlob(qData);
-    const qName = `${pid}__QUESTIONNAIRE__${isoSafeNow()}__S${sessionId}.csv`;
-
-    setOverlay(true, "Saving questionnaire…", "Please wait.");
+    const btn = $('#btnQuestionnaireDone');
     try{
+      if (!requireValue('#pid', 'Please enter the participant ID.')) return;
+      const pid = (pidEl.value || "").trim();
+      const qData = collectQuestionnaireData();
+      const qBlob = buildQuestionnaireCsvBlob(qData);
+      const qName = `${pid}__QUESTIONNAIRE__${isoSafeNow()}__S${sessionId}.csv`;
+
+      if (btn) btn.disabled = true;
+      setOverlay(true, "Saving questionnaire…", "Please wait.");
+
       await uploadConsentIfNeeded(pid);
       try{
         await uploadBlob(qBlob, qName, pid, "QUESTIONNAIRE", "questionnaire");
@@ -1364,8 +1367,12 @@
       }
       questionnaireUploaded = true;
       show(screens.taskselect);
+    } catch (e) {
+      console.error(e);
+      alert('Something went wrong while finishing the questionnaire. Please try again.');
     } finally {
       setOverlay(false);
+      if (btn) btn.disabled = false;
     }
   });
 
