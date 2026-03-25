@@ -1127,6 +1127,11 @@
   citySel.addEventListener('input', updateConsentContinue);
   updateConsentContinue();
 
+
+  function valueOf(id){ const el = $(id); return el ? (el.value || "") : ""; }
+  function checked01(id){ const el = $(id); return el && el.checked ? "1" : "0"; }
+  function yesNo12FromCheckbox(id){ const el = $(id); return el && el.checked ? "1" : "2"; }
+
   function requireValue(id, message){
     const el = $(id);
     if (!el || !String(el.value || "").trim()){
@@ -1213,61 +1218,57 @@
   function getCheckboxValues(name){
     return $$(`input[name="${name}"]:checked`).map(el => el.value);
   }
-  function yesNo12FromCheckbox(id){
-    return $(id).checked ? "1" : "2";
-  }
-
   function collectQuestionnaireData(){
     computeDerived();
     const data = {
-      participant_id: (pidEl.value || "").trim(),
+      participant_id: valueOf('#pid').trim(),
       bundesland: stateSel.value || "",
       city: (citySel.value || "").trim(),
-      year_of_birth: $('#birthYear').value || "",
-      year_arrival_austria: $('#arrivalYear').value || "",
-      age: $('#derivedAge').value || "",
-      age_at_migration: $('#derivedAgeMigration').value || "",
-      duration_living_austria: $('#derivedDuration').value || "",
+      year_of_birth: valueOf('#birthYear'),
+      year_arrival_austria: valueOf('#arrivalYear'),
+      age: valueOf('#derivedAge'),
+      age_at_migration: valueOf('#derivedAgeMigration'),
+      duration_living_austria: valueOf('#derivedDuration'),
       lived_other_country_longer_6m: getRadio('livedAbroad'),
-      lived_other_country_years: $('#abroadYears').value || "",
-      lived_other_country_name: $('#abroadCountry').value || "",
-      lived_other_country_from: $('#abroadFrom').value || "",
-      lived_other_country_to: $('#abroadTo').value || "",
+      lived_other_country_years: valueOf('#abroadYears'),
+      lived_other_country_name: valueOf('#abroadCountry'),
+      lived_other_country_from: valueOf('#abroadFrom'),
+      lived_other_country_to: valueOf('#abroadTo'),
       languages_before_primary_school: getCheckboxValues('prePrimaryLang').join('|'),
-      languages_before_primary_school_other: $('#prePrimaryOther').value || "",
+      languages_before_primary_school_other: valueOf('#prePrimaryOther'),
       german_classes_before_austria: getRadio('germanBefore'),
-      german_before_variety: $('#germanBeforeVariety').value || "",
-      german_before_last_year: $('#germanBeforeLastYear').value || "",
+      german_before_variety: valueOf('#germanBeforeVariety'),
+      german_before_last_year: valueOf('#germanBeforeLastYear'),
       german_classes_in_austria: getRadio('germanAustria'),
-      german_in_austria_variety: $('#germanAustriaVariety').value || "",
-      german_in_austria_last_year: $('#germanAustriaLastYear').value || "",
+      german_in_austria_variety: valueOf('#germanAustriaVariety'),
+      german_in_austria_last_year: valueOf('#germanAustriaLastYear'),
       expat_community: getRadio('expatCommunity'),
-      expat_since_year: $('#expatSinceYear').value || "",
+      expat_since_year: valueOf('#expatSinceYear'),
       back_to_uk_since_leaving: getRadio('backToUK'),
-      back_to_uk_avg_duration: $('#ukStayDuration').value || "",
-      household_people_besides_self: $('#householdCount').value || "",
-      household_languages_spoken_english: $('#hhSpeakEnglishChk').checked ? "1" : "0",
-      household_languages_spoken_german: $('#hhSpeakGermanChk').checked ? "1" : "0",
-      household_languages_spoken_other: $('#hhSpeakOtherChk').checked ? "1" : "0",
-      household_languages_spoken_other_text: $('#hhOtherSpeak').value || "",
-      household_english_variety: $('#hhEnglishVariety').value || "",
-      household_german_variety: $('#hhGermanVariety').value || "",
-      you_to_household_language: $('#hhYouToThem').value || "",
-      you_to_household_other: $('#hhYouToThemOther').value || "",
-      you_to_household_german_variety: $('#hhYouToThemGermanVariety').value || "",
-      household_to_you_language: $('#hhThemToYou').value || "",
-      household_to_you_other: $('#hhThemToYouOther').value || "",
-      household_to_you_english_variety: $('#hhThemToYouEnglishVariety').value || "",
-      household_to_you_german_variety: $('#hhThemToYouGermanVariety').value || "",
+      back_to_uk_avg_duration: valueOf('#ukStayDuration'),
+      household_people_besides_self: valueOf('#householdCount'),
+      household_languages_spoken_english: checked01('#hhSpeakEnglishChk'),
+      household_languages_spoken_german: checked01('#hhSpeakGermanChk'),
+      household_languages_spoken_other: checked01('#hhSpeakOtherChk'),
+      household_languages_spoken_other_text: valueOf('#hhOtherSpeak'),
+      household_english_variety: valueOf('#hhEnglishVariety'),
+      household_german_variety: valueOf('#hhGermanVariety'),
+      you_to_household_language: valueOf('#hhYouToThem'),
+      you_to_household_other: valueOf('#hhYouToThemOther'),
+      you_to_household_german_variety: valueOf('#hhYouToThemGermanVariety'),
+      household_to_you_language: valueOf('#hhThemToYou'),
+      household_to_you_other: valueOf('#hhThemToYouOther'),
+      household_to_you_english_variety: valueOf('#hhThemToYouEnglishVariety'),
+      household_to_you_german_variety: valueOf('#hhThemToYouGermanVariety'),
       has_children: getRadio('hasChildren'),
       children_english_names: getRadio('childEnglishNames'),
       children_german_names: getRadio('childGermanNames'),
       children_other_names: getRadio('childOtherNames'),
-      children_other_names_text: $('#childOtherNamesText').value || "",
+      children_other_names_text: valueOf('#childOtherNamesText'),
       uk_contact_frequency: getRadio('ukContactFreq'),
-      uk_contact_language: $('#ukContactLanguage').value || "",
-      uk_contact_language_other: $('#ukContactLanguageOther').value || "",
-      uk_contact_method: $('#ukContactMethod').value || "",
+      uk_contact_language: valueOf('#ukContactLanguage'),
+      uk_contact_language_other: valueOf('#ukContactLanguageOther'),
+      uk_contact_method: valueOf('#ukContactMethod'),
       watch_british_tv: getRadio('watchBritishTV'),
       listen_british_radio_podcasts: getRadio('listenBritishRadio'),
       read_british_media: getRadio('readBritishMedia'),
@@ -1286,7 +1287,7 @@
       english_changed_word_order: yesNo12FromCheckbox('changedWordOrder'),
       english_changed_pitch: yesNo12FromCheckbox('changedPitch'),
       english_changed_grammar: yesNo12FromCheckbox('changedGrammar'),
-      final_comment: $('#finalComment').value || ""
+      final_comment: valueOf('#finalComment')
     };
 
     PROF_LABELS.forEach(([key])=>{
@@ -1337,39 +1338,29 @@
     if (consentUploaded || !consentGiven || !consentTimeIso) return;
     const consentBlob = buildConsentCsvBlob(pid, "");
     const consentName = `${pid}__CONSENT__${isoSafeNow()}__S${sessionId}.csv`;
-    try{
-      await uploadBlob(consentBlob, consentName, pid, "CONSENT", "consent");
-    }catch(e){
-      console.warn(e);
-      saveLocal(consentBlob, consentName);
-    }
+    await uploadBlob(consentBlob, consentName, pid, "CONSENT", "consent");
     consentUploaded = true;
   }
 
   $('#btnQuestionnaireDone').addEventListener('click', async ()=>{
     const btn = $('#btnQuestionnaireDone');
+    if (!requireValue('#pid', 'Please enter the participant ID.')) return;
+    const pid = valueOf('#pid').trim();
+    if (btn) btn.disabled = true;
+    setOverlay(true, "Submitting questionnaire…", "Please wait. Do not close this tab.");
     try{
-      if (!requireValue('#pid', 'Please enter the participant ID.')) return;
-      const pid = (pidEl.value || "").trim();
       const qData = collectQuestionnaireData();
       const qBlob = buildQuestionnaireCsvBlob(qData);
       const qName = `${pid}__QUESTIONNAIRE__${isoSafeNow()}__S${sessionId}.csv`;
 
-      if (btn) btn.disabled = true;
-      setOverlay(true, "Saving questionnaire…", "Please wait.");
-
       await uploadConsentIfNeeded(pid);
-      try{
-        await uploadBlob(qBlob, qName, pid, "QUESTIONNAIRE", "questionnaire");
-      }catch(e){
-        console.warn(e);
-        saveLocal(qBlob, qName);
-      }
+      await uploadBlob(qBlob, qName, pid, "QUESTIONNAIRE", "questionnaire");
+
       questionnaireUploaded = true;
       show(screens.taskselect);
     } catch (e) {
       console.error(e);
-      alert('Something went wrong while finishing the questionnaire. Please try again.');
+      alert('The questionnaire could not be submitted. Please try again. If the problem continues, please contact the researcher.');
     } finally {
       setOverlay(false);
       if (btn) btn.disabled = false;
@@ -1386,7 +1377,7 @@
     taskItems = (t && Array.isArray(t.items)) ? t.items.slice() : [];
     itemIdx = 0;
     currentItem = null;
-    const pid = (pidEl.value || "").trim();
+    const pid = valueOf('#pid').trim();
     if (!pid){
       alert("Please complete the questionnaire first.");
       show(screens.q1);
