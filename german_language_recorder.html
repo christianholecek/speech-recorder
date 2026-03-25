@@ -1,0 +1,902 @@
+<!doctype html> <html lang="en" data-theme="light"> <head> <meta charset="utf-8" /> <meta name="viewport" content="width=device-width, initial-scale=1" /> <title>Language Experiment Recorder</title> <style> /* ===== THEME TOKENS (Uni Graz only) ===== */ :root[data-theme="light"]{ --uni-yellow:#ffd500; --uni-black:#000; --uni-grey:#c6c6c6; --uni-white:#fff; --bg: var(--uni-white); --page-bg: var(--bg); --card: var(--uni-white); --ink: var(--uni-black); --muted: #444; --accent: var(--uni-yellow); --border: #e6e6e6; --pill-bg: #f7f7f7; --panel: #ffffff; --btn-fg: #000000; --shadow: 0 10px 30px rgba(0,0,0,.08); } :root{ color-scheme: light; } html,body{ margin:0;height:100%; background:var(--page-bg); color:var(--ink); font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial } .wrap{max-width:920px;margin:0 auto;padding:24px} .card{ background:var(--card);border:1px solid var(--border); border-radius:16px;box-shadow:var(--shadow);padding:20px } h1{margin:0 0 8px;font-size:26px} h2{margin:14px 0 6px;font-size:20px} p{color:var(--muted)} label{display:block;margin:10px 0 6px} input{ background:var(--panel);color:var(--ink); border:1px solid var(--border);border-radius:12px; padding:10px 12px;width:100%;box-sizing:border-box } /* Make selects match inputs */ select{ background:var(--panel);color:var(--ink); border:1px solid var(--border);border-radius:12px; padding:10px 12px;width:100%;box-sizing:border-box; font-family:inherit;font-size:inherit; } .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center} button{ background:var(--accent);border:1px solid var(--border); color:var(--btn-fg);font-weight:700;border-radius:12px;padding:10px 14px;cursor:pointer } button[disabled]{opacity:.5;cursor:not-allowed} .btn-ghost{background:var(--pill-bg);color:var(--ink);border:1px solid var(--border)} .pill{display:inline-block;background:var(--pill-bg);border:1px solid var(--border);border-radius:999px;padding:6px 10px;color:var(--muted);font-size:12px} .screen{display:none} .screen.active{display:block} .subtitle{color:var(--muted)} .footer{margin-top:12px;color:var(--muted);font-size:12px} .listInfo{font-weight:600} .prompt{ font-size:40px; text-align:center; margin:18px 0 10px; line-height:1.15; word-break:break-word; } /* Header logo */ .uni-logo{ height:44px;width:auto;border-radius:8px;display:block; } /* Consent checkbox: don't style like text input */ input[type="checkbox"]{ width:auto !important;background:transparent !important;border:none !important; box-sizing:content-box !important;margin:0 !important; } /* Consent: left alignment & tidy scrollbox */ #scr-consent{ display:flex;flex-direction:column;align-items:flex-start;text-align:left; } #scr-consent .consent-box{ box-sizing:border-box;width:100%;max-width:100%;max-height:320px; background:var(--panel);border:1px solid var(--border); border-radius:12px;padding:14px; /* make scrolling obvious */ overflow-y: scroll; /* always show scrollbar */ overflow-x:hidden; padding-right:14px; scrollbar-gutter:stable both-edges; font-size:inherit;line-height:1.35;background-clip:padding-box;text-align:left; } #scr-consent .consent-box p{margin:0 0 10px} /* Firefox */ #scr-consent .consent-box{ scrollbar-width: auto; scrollbar-color: rgba(0,0,0,.35) rgba(0,0,0,.08); } /* Chrome / Edge / Safari */ #scr-consent .consent-box::-webkit-scrollbar{ width: 12px; } #scr-consent .consent-box::-webkit-scrollbar-track{ background: rgba(0,0,0,.06); border-radius: 999px; } #scr-consent .consent-box::-webkit-scrollbar-thumb{ background: rgba(0,0,0,.30); border-radius: 999px; border: 3px solid rgba(0,0,0,.06); } #scr-consent .consent-box::-webkit-scrollbar-thumb:hover{ background: rgba(0,0,0,.45); } #scr-consent label{ display:flex !important;align-items:flex-start;gap:10px;margin:10px 0 6px;text-align:left !important; } #scr-consent label span{white-space:nowrap;line-height:1.2} #scr-consent input[type="checkbox"]{margin-top:3px} #scr-consent .row{justify-content:flex-start !important} @media (max-width:640px){ #scr-consent label span{white-space:normal} } /* Scroll hint under consent box */ .scroll-hint{ display:inline-flex; align-items:center; gap:8px; margin:8px 0 0; font-size:12px; color:var(--muted); } .scroll-dot{ width:8px;height:8px;border-radius:50%; background:var(--accent); border:1px solid var(--border); } /* Task selection cards */ .task-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px} .task-card{ border:1px solid var(--border); border-radius:16px; padding:14px; background:var(--panel); box-shadow:0 6px 18px rgba(0,0,0,.05); } .task-card h3{margin:0 0 6px;font-size:18px} .task-card p{margin:0 0 10px} @media (max-width:720px){ .task-grid{grid-template-columns:1fr} } /* Upload overlay */ .overlay{ position:fixed;inset:0;display:none;align-items:center;justify-content:center; background:rgba(255,255,255,.72); backdrop-filter: blur(2px); z-index:9999; } .overlay.active{display:flex} .overlay .box{ width:min(520px,92vw); background:var(--panel); border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow); padding:16px; } .overlay .row{justify-content:flex-start} .spinner{ width:18px;height:18px;border-radius:50%; border:3px solid var(--border); border-top-color: var(--ink); animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } } ul{margin:8px 0 0 18px;color:var(--muted)} li{margin:4px 0} /* Primes area for Task A and Task B */ .prime-box{ background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:10px 12px; margin-top:10px; } .prime-title{font-weight:700;margin:0 0 6px} .prime-words{display:flex;gap:8px;flex-wrap:wrap} .prime-word{ display:inline-block; background:var(--pill-bg); border:1px solid var(--border); border-radius:999px; padding:6px 10px; font-weight:700; } /* Test recording panel */ .test-box{ margin-top:14px; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px; } .test-title{font-weight:800;margin:0 0 6px} .test-prompt{ font-size:18px; font-weight:700; margin:8px 0 10px; } audio{width:100%} </style> </head> <body> <div class="wrap"> <div class="card"> <!-- Header with logo --> <div class="row" style="justify-content:space-between;align-items:center"> <h1>Language Recorder</h1> <img class="uni-logo" src="https://presse.uni-graz.at/fileadmin/grafik/logos/logo_uni_graz_4c.jpg" alt="University of Graz" /> </div> <!-- Screen 0: consent --> <div id="scr-consent" class="screen active"> <h2>Participant Information &amp; Consent</h2> <div class="consent-box"> <p><strong>Thank you very much for participating!</strong> <br>Before you start, please read the information and instructions carefully.</p> <p><strong>What you will do:</strong> You will read short sentences out loud and record them. The session takes about 20 minutes.</p> <p><strong>Tasks and break:</strong> You may complete the two tasks in any order (Task A first or Task B first). If you complete both tasks in one session, please take a <strong>break of at least 15 minutes</strong> between them.</p> <p><strong>Before you start (important):</strong></p> <ul> <li>Please use a laptop/desktop computer (not a phone or tablet).</li> <li>Ideally, be alone in a quiet room (close windows, silence notifications).</li> <li>Sit close to your microphone (about 30–50 cm) and speak clearly at a normal volume.</li> <li>For each recording: press <strong>Start recording</strong>, wait one second, then speak. After you finish, wait one second, then press <strong>Stop</strong>.</li> </ul> <br> <p><strong>Microphone permission:</strong> Your browser will ask for permission to access your microphone. Please click <strong>Allow</strong>. On the microphone setup page, you can make a <strong>test recording</strong> to check your microphone. Test recordings are <strong>not saved</strong>.</p> <p><strong>Saving your recordings:</strong> After each sentence, click <strong>Accept &amp; save</strong>. Your recording will be uploaded (this can take a few seconds). Once the upload is complete, you can proceed to the next sentence.</p> <p><strong>Data:</strong> Audio recordings and responses will be stored securely and used for research purposes. Data will be anonymised for publication.</p> <p><strong>Voluntary:</strong> Participation is voluntary. You can withdraw at any time before submission.</p> <p><strong>Contact:</strong> If anything is unclear or you experience technical problems, please contact Christian Holecek (christian.holecek@edu.uni-graz.at), the student assistant who sent you this link.</p> </div> <div class="scroll-hint"><span class="scroll-dot"></span>Scroll inside the box to read all information ↓</div> <!-- Bundesland + City --> <div class="row" style="margin-top:12px; width:100%"> <div style="flex:1; min-width:220px"> <label for="stateSel">Bundesland (Austria)</label> <select id="stateSel"> <option value="" selected disabled>Please select…</option> <option>Burgenland</option> <option>Kärnten</option> <option>Niederösterreich</option> <option>Oberösterreich</option> <option>Salzburg</option> <option>Steiermark</option> <option>Tirol</option> <option>Vorarlberg</option> <option>Wien</option> </select> </div> <div style="flex:1; min-width:220px"> <label for="citySel">City</label> <input id="citySel" placeholder="e.g., Graz" /> </div> </div> <label style="display:flex;align-items:center;gap:10px"> <input type="checkbox" id="consentChk" /> <span>I have read the information and consent to participate.</span> </label> <div class="row" style="margin-top:12px"> <button id="btnConsent" type="button" disabled>Agree and Continue</button> <button class="btn-ghost" id="btnDecline" type="button">Decline</button> </div> <p class="footer"></p> </div> <!-- Screen 1: Task selection --> <div id="scr-taskselect" class="screen"> <h2>Choose a task</h2> <p class="subtitle">Select the task you are completing now.</p> <div class="task-grid"> <div class="task-card"> <h3>Task A — English rhyming</h3> <p class="subtitle">Say the 3 rhyming words, then record the displayed sentence.</p> <button id="btnPickA" type="button">Select Task A</button> </div> <div class="task-card"> <h3>Task B — German rhyming</h3> <p class="subtitle">Say the 3 rhyming words, then record the displayed sentence.</p> <button id="btnPickB" type="button">Select Task B</button> </div> </div> <p class="footer">You can return to this page after finishing a task.</p> </div> <!-- Screen 2: Participant ID --> <div id="scr-pid" class="screen"> <h2>Participant ID</h2> <label>Participant ID</label> <input id="pid" placeholder="Please enter your provided participant ID here" /> <div class="row" style="margin-top:12px"> <button id="btnPidContinue" type="button" disabled>Continue</button> <button id="btnBackToTasks1" class="btn-ghost" type="button">Back</button> </div> <p class="footer">Please enter the ID exactly as provided.</p> </div> <!-- Screen 3: Task instructions --> <div id="scr-instr" class="screen"> <h2 id="instrTitle">Task instructions</h2> <div id="instrBody" class="subtitle"></div> <div class="row" style="margin-top:12px"> <button id="btnInstrOk" type="button">I understand</button> <button id="btnBackToTasks2" class="btn-ghost" type="button">Back</button> </div> <p class="footer"></p> </div> <!-- Screen 4: Microphone --> <div id="scr-mic" class="screen"> <h2>Microphone setup</h2> <p class="subtitle">Click the button below and allow microphone access in your browser.</p> <!-- Mic picker --> <div style="margin-top:10px"> <label for="micSel">Microphone device</label> <div class="row"> <select id="micSel" disabled> <option value="" selected>Enable microphone to list devices…</option> </select> <button id="btnRefreshMics" class="btn-ghost" type="button" disabled>Refresh list</button> </div> <p class="footer" style="margin-top:6px">If your recordings are silent, choose a different device and repeat the test.</p> </div> <div class="row" style="margin-top:12px"> <button id="btnInit">Enable microphone</button> <button id="btnBeginTask" disabled>Begin task</button> <!-- NEW: return to the same item after mic changes --> <button id="btnBackToTask" class="btn-ghost" type="button" style="display:none">Back to task</button> <span class="pill" id="status">mic: not started</span> <span class="pill" id="sr">sr: —</span> <span class="pill" id="level">level: —</span> </div> <!-- Test recording panel --> <div id="testBox" class="test-box" style="display:none"> <div class="test-title">Test recording</div> <div class="subtitle">Press <strong>Start test</strong>, wait one second, read the sentence, wait one second, then press <strong>Stop test</strong>. You can redo the test as many times as you like. Test recordings are not saved.</div> <div class="test-prompt" id="testPrompt">Please say: "The North Wind and the Sun were disputing which was the stronger."</div> <div class="row" style="margin-top:10px"> <button id="btnTestStart" type="button" disabled>Start test</button> <button id="btnTestStop" class="btn-ghost" type="button" disabled>Stop test</button> <button id="btnTestPlay" class="btn-ghost" type="button" disabled>Play</button> <button id="btnTestRedo" class="btn-ghost" type="button" disabled>Redo test</button> <span class="pill" id="testStatus">test: not recorded</span> </div> <audio id="testPlayer" controls style="display:none;margin-top:10px"></audio> </div> <p class="footer"></p> </div> <!-- Screen 5: Run task --> <div id="scr-run" class="screen"> <div class="row"> <span class="pill" id="runTaskLabel">Task —</span> <span class="pill" id="progress">Item 1 / N</span> <span class="pill" id="runStatus">idle</span> </div> <div id="primesBox" class="prime-box" style="display:none"> <div class="prime-title">Say these three words out loud:</div> <div class="prime-words" id="primesWords"></div> </div> <div style="margin-top:8px"> <div class="listInfo" id="groupTitle"></div> <div class="prompt" id="promptDisplay">—</div> <p class="subtitle" id="runHint">Press <strong>Start recording</strong>, read the sentence once, press <strong>Stop</strong>, then <strong>Accept &amp; save</strong>.</p> </div> <div class="row" style="margin-top:12px"> <button id="btnStartRec">Start recording</button> <button id="btnStopRec" class="btn-ghost" disabled>Stop</button> <button id="btnAccept" disabled>Accept &amp; save</button> <button id="btnNext" class="btn-ghost" disabled>Next ▶</button> <!-- NEW: go to mic setup without losing itemIdx --> <button id="btnGoMic" class="btn-ghost" type="button">Microphone setup</button> </div> </div> <!-- Screen 6: Done --> <div id="scr-done" class="screen"> <h2>Task complete ✅</h2> <p class="subtitle" id="summary"></p> <div class="row" style="margin-top:12px"> <button id="btnBackToTasksDone" type="button">Back to task selection</button> </div> <p class="footer">If any upload failed, the files were offered as local downloads.</p> </div> </div> </div> <!-- Upload overlay --> <div id="overlay" class="overlay" aria-live="polite" aria-busy="true"> <div class="box"> <div class="row"> <div class="spinner" aria-hidden="true"></div> <div> <div style="font-weight:700" id="overlayTitle">Uploading… please wait</div> <div class="subtitle" id="overlayMsg">Do not close this tab.</div> </div> </div> </div> </div> <script>
+(function(){
+  // ============== CONFIG ==============
+  const UPLOAD_URL = "https://script.google.com/macros/s/AKfycbyu__fIr1DfRuYwVV12q17YJVYGRxHWv0DtG6VLJGqkCv8Rmz0y0UC_iZikr8NcFB14iQ/exec";
+  // Max recording duration safety cap (seconds)
+  const MAX_REC_SECONDS = 30;
+  // Silence detection threshold (peak amplitude in [-1,1])
+  const SILENCE_PEAK_THRESHOLD = 0.01;
+
+  // -------- Task A (English) vowel set + primes (fixed pseudo-random order) --------
+  const TASK_A_VOWELS = [
+    { key:"i_long",   targetToken:"heed",  primes:["need","seed","feed"] },
+    { key:"i_short",  targetToken:"hid",   primes:["kid","lid","bid"] },
+    { key:"e_short",  targetToken:"head",  primes:["bed","fed","led"] },
+    { key:"ae",       targetToken:"had",   primes:["bad","mad","sad"] },
+    { key:"a_short",  targetToken:"hud",   primes:["bud","mud","cud"] },
+    { key:"a_long",   targetToken:"hard",  primes:["card","lard","yard"] },
+    { key:"o_short",  targetToken:"hod",   primes:["cod","nod","pod"] },
+    { key:"o_long",   targetToken:"hoard", primes:["fraud","sawed","clawed"] },
+    { key:"u_short",  targetToken:"hood",  primes:["good","could","would"] },
+    { key:"u_long",   targetToken:"who'd", primes:["food","mood","dude"] },
+    { key:"er",       targetToken:"herd",  primes:["nerd","bird","third"] }
+  ];
+
+  const CARRIERS_A = {
+    C1: "Say H__d again.",
+    C2: "We said H__d together."
+  };
+
+  const TASK_A_SEED = 1337;
+
+  // -------- Task B (German) vowel set + primes (fixed pseudo-random order) --------
+  const TASK_B_VOWELS = [
+    { key:"i_long",  targetToken:"hiet",  primes:["sieht","zieht","Lied"] },
+    { key:"i_short", targetToken:"hiti",  primes:["Bitt","Ritt","mit"] },
+    { key:"e_long",  targetToken:"heet",  primes:["geht","steht","weht"] },
+    { key:"e_short", targetToken:"het",   primes:["Bett","nett","fett"] },
+    { key:"a_long",  targetToken:"haht",  primes:["Rat","Tat","Bad"] },
+    { key:"a_short", targetToken:"hat",   primes:["matt","satt","glatt"] },
+    { key:"y_long",  targetToken:"hueht", primes:["müht","blüht","glüht"] },
+    { key:"y_short", targetToken:"hyt",   primes:["Bütt","Glück","Stück"] },
+    { key:"oe_long", targetToken:"hoeht", primes:["blöd","öd","löt"] },
+    { key:"oe_short",targetToken:"hoet",  primes:["höll","könn","gönn"] },
+    { key:"o_open",  targetToken:"hot",   primes:["Schrott","Gott","Spott"] },
+    { key:"o_long",  targetToken:"hoot",  primes:["Boot","Brot","Not"] },
+    { key:"u_long",  targetToken:"huht",  primes:["gut","Blut","Mut"] },
+    { key:"u_short", targetToken:"hut",   primes:["Schutt","Putt","Butt"] }
+  ];
+
+  const CARRIERS_B = {
+    C1: "Er hat H__t gesagt.",
+    C2: "Wir haben H__t gesagt."
+  };
+
+  const TASK_B_SEED = 7331;
+
+  function mulberry32(seed){
+    let t = seed >>> 0;
+    return function(){
+      t += 0x6D2B79F5;
+      let r = Math.imul(t ^ (t >>> 15), 1 | t);
+      r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function shuffleInPlace(arr, rng){
+    for (let i = arr.length - 1; i > 0; i--){
+      const j = Math.floor(rng() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function buildVowelItems(vowels, carriers, seed, taskId, lang){
+    const byKey = Object.create(null);
+    for (const v of vowels) byKey[v.key] = v;
+    const raw = [];
+    for (const v of vowels){
+      raw.push({ vKey: v.key, cond: "C1" });
+      raw.push({ vKey: v.key, cond: "C2" });
+    }
+    const rng = mulberry32(seed);
+    shuffleInPlace(raw, rng);
+    for (let i = 1; i < raw.length; i++){
+      if (raw[i].vKey === raw[i-1].vKey){
+        let j = i + 1;
+        while (j < raw.length && raw[j].vKey === raw[i].vKey) j++;
+        if (j < raw.length){ [raw[i], raw[j]] = [raw[j], raw[i]]; }
+      }
+    }
+    return raw.map(({vKey, cond})=>{
+      const v = byKey[vKey];
+      const template = carriers[cond];
+      // For English: replace "H__" with the target token; for German keep as-is (H__t)
+      const promptText = taskId === "A"
+        ? template.replace("H__", v.targetToken)
+        : template;
+      return {
+        taskId,
+        lang,
+        condition: cond,
+        targetToken: v.targetToken,
+        primes: v.primes,
+        promptText,
+      };
+    });
+  }
+
+  // ============== Stimulus objects ==============
+  function sanitizeToken(s){
+    return String(s || "").toLowerCase().replace(/[^a-z0-9']+/g, "");
+  }
+
+  const TASKS = {
+    A: {
+      id: "A",
+      langCode: "E",
+      name: "Task A — English rhyming",
+      instructionsHtml: `
+        <p><strong>Task A:</strong> For each item:</p>
+        <ul>
+          <li>You will see <strong>three English words</strong>.</li>
+          <li>These three words <strong>rhyme with the target word in the sentence</strong>.</li>
+          <li>Press <strong>Start recording</strong>.</li>
+          <li><strong>In the same recording</strong>, first say the <strong>three words</strong>, and then read the <strong>sentence</strong> out loud.</li>
+          <li><strong>Example:</strong> <em>need – seed – feed</em> → <strong>Say heed again.</strong></li>
+          <li>Press <strong>Stop</strong> → <strong>Accept &amp; save</strong>.</li>
+        </ul>
+      `,
+      items: buildVowelItems(TASK_A_VOWELS, CARRIERS_A, TASK_A_SEED, "A", "E")
+    },
+    B: {
+      id: "B",
+      langCode: "G",
+      name: "Task B — German rhyming",
+      instructionsHtml: `
+        <p><strong>Task B:</strong> For each item:</p>
+        <ul>
+          <li>You will see <strong>three German words</strong>.</li>
+          <li>These three words <strong>rhyme with the missing word in the sentence</strong>. The sentence shows <strong>H__t</strong> as a clue.</li>
+          <li>Press <strong>Start recording</strong>.</li>
+          <li><strong>In the same recording</strong>, first say the <strong>three words</strong>, and then read the <strong>sentence</strong> out loud.</li>
+          <li>The missing word in the sentence may be a <strong>nonsense word</strong> — that is expected. Please say it as shown and do not "correct" it.</li>
+          <li><strong>Example:</strong> <em>Lied – sieht – zieht</em> → <strong>Er hat hiet gesagt.</strong></li>
+          <li>Press <strong>Stop</strong> → <strong>Accept &amp; save</strong>.</li>
+        </ul>
+      `,
+      items: buildVowelItems(TASK_B_VOWELS, CARRIERS_B, TASK_B_SEED, "B", "G")
+    }
+  };
+
+  // ============== UI refs =============
+  const $ = s => document.querySelector(s);
+  const scrConsent   = $('#scr-consent');
+  const scrTaskSel   = $('#scr-taskselect');
+  const scrPid       = $('#scr-pid');
+  const scrInstr     = $('#scr-instr');
+  const scrMic       = $('#scr-mic');
+  const scrRun       = $('#scr-run');
+  const scrDone      = $('#scr-done');
+  const consentChk   = $('#consentChk');
+  const btnConsent   = $('#btnConsent');
+  const btnDecline   = $('#btnDecline');
+  const stateSel     = $('#stateSel');
+  const citySel      = $('#citySel');
+  const btnPickA     = $('#btnPickA');
+  const btnPickB     = $('#btnPickB');
+  const pidEl        = $('#pid');
+  const btnPidContinue  = $('#btnPidContinue');
+  const btnBackToTasks1 = $('#btnBackToTasks1');
+  const btnBackToTasks2 = $('#btnBackToTasks2');
+  const instrTitle   = $('#instrTitle');
+  const instrBody    = $('#instrBody');
+  const btnInstrOk   = $('#btnInstrOk');
+  const btnInit      = $('#btnInit');
+  const btnBeginTask = $('#btnBeginTask');
+  const btnBackToTask= $('#btnBackToTask');
+  const statusEl     = $('#status');
+  const srEl         = $('#sr');
+  const levelEl      = $('#level');
+  const micSel       = $('#micSel');
+  const btnRefreshMics = $('#btnRefreshMics');
+  // Test recording UI
+  const testBox      = $('#testBox');
+  const testStatusEl = $('#testStatus');
+  const testPlayer   = $('#testPlayer');
+  const btnTestStart = $('#btnTestStart');
+  const btnTestStop  = $('#btnTestStop');
+  const btnTestPlay  = $('#btnTestPlay');
+  const btnTestRedo  = $('#btnTestRedo');
+  const runTaskLabel = $('#runTaskLabel');
+  const progressEl   = $('#progress');
+  const runStatusEl  = $('#runStatus');
+  const groupTitleEl = $('#groupTitle');
+  const promptDisplay= $('#promptDisplay');
+  const runHint      = $('#runHint');
+  const primesBox    = $('#primesBox');
+  const primesWords  = $('#primesWords');
+  const btnStartRec  = $('#btnStartRec');
+  const btnStopRec   = $('#btnStopRec');
+  const btnAccept    = $('#btnAccept');
+  const btnNext      = $('#btnNext');
+  const btnGoMic     = $('#btnGoMic');
+  const summaryEl    = $('#summary');
+  const btnBackToTasksDone = $('#btnBackToTasksDone');
+  const overlay      = $('#overlay');
+  const overlayTitle = $('#overlayTitle');
+  const overlayMsg   = $('#overlayMsg');
+
+  function show(el){
+    document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));
+    el.classList.add('active');
+    window.scrollTo(0,0);
+  }
+  function setMicStatus(t){ statusEl.textContent = t; }
+  function setRunStatus(t){ runStatusEl.textContent = t; }
+  function setOverlay(on, title, msg){
+    overlayTitle.textContent = title || (on ? "Uploading… please wait" : "");
+    overlayMsg.textContent   = msg   || (on ? "Do not close this tab." : "");
+    overlay.classList.toggle('active', !!on);
+  }
+
+  // ============== Session / consent state ==============
+  function randToken(len=10){
+    const a = new Uint8Array(len);
+    const c = window.crypto;
+    if (c && c.getRandomValues) { c.getRandomValues(a); }
+    else { for (let i=0;i<a.length;i++) a[i] = Math.floor(Math.random()*256); }
+    return Array.from(a, b => (b % 36).toString(36)).join('');
+  }
+
+  const sessionId       = randToken(10);
+  const sessionStartIso = new Date().toISOString();
+  let consentGiven    = false;
+  let consentTimeIso  = "";
+  let consentUploaded = false;
+  let selectedTaskId  = null;
+  let taskItems       = [];
+  let itemIdx         = 0;
+  let currentItem     = null;
+  // NEW: remember that we came from the run screen
+  let returnToRunAfterMic = false;
+
+  function isoSafeNow(){
+    const d = new Date();
+    const pad = (n,w=2)=>String(n).padStart(w,'0');
+    const ms = pad(d.getMilliseconds(),3);
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}.${ms}`;
+  }
+
+  function csvEscape(s){
+    const str = String(s ?? "");
+    if (/[",\n]/.test(str)) return `"${str.split('"').join('""')}"`;
+    return str;
+  }
+
+  function buildConsentCsvBlob(pid, taskPlanned){
+    const header = [
+      "session_id","session_start_iso","consent_time_iso",
+      "participant_id","task_selected_at_pid_step","bundesland","city"
+    ];
+    const row = [
+      sessionId, sessionStartIso, consentTimeIso,
+      pid || "", taskPlanned || "",
+      (stateSel ? stateSel.value : ""),
+      (citySel  ? (citySel.value || "").trim() : "")
+    ];
+    const lines = [header.join(","), row.map(csvEscape).join(",")];
+    return new Blob([lines.join("\n")], {type:"text/csv"});
+  }
+
+  // One CSV per session for recordings
+  const sessionRows = [];
+  const CSV_HEADER = [
+    "session_id","session_start_iso","participant_id",
+    "task","lang","condition","target_token",
+    "item_index","prompt_text","primes",
+    "filename_wav","accepted_at_iso","duration_seconds","sample_rate_hz"
+  ];
+
+  function buildSessionCsvBlob(){
+    const lines = [];
+    lines.push(CSV_HEADER.join(","));
+    for (const row of sessionRows){ lines.push(row.map(csvEscape).join(",")); }
+    return new Blob([lines.join("\n")], {type:"text/csv"});
+  }
+
+  // Take counters for suffix _01, _02...
+  const takeCounters = Object.create(null);
+  function nextTakeNumber(pid, targetToken, langCode, condition){
+    const key = `${pid}__${targetToken}__${langCode}__${condition}`;
+    const n = (takeCounters[key] || 0) + 1;
+    takeCounters[key] = n;
+    return String(n).padStart(2, "0");
+  }
+
+  function buildWavNameFromItem(item){
+    const pid      = (pidEl.value || "anon").trim();
+    const targetTok= sanitizeToken(item.targetToken || "unknown");
+    const lang     = item.lang || (selectedTaskId === "A" ? "E" : "G");
+    const cond     = item.condition || "C0";
+    const take     = nextTakeNumber(pid, targetTok, lang, cond);
+    return `${pid}_${targetTok}_${lang}_${cond}_${take}.wav`;
+  }
+
+  function saveLocal(blob, filename){
+    const a = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  }
+
+  async function uploadBlob(blob, filename, pid, taskId, itemLabel){
+    if (!UPLOAD_URL) throw new Error("No UPLOAD_URL set");
+    const base64 = await new Promise((res,rej)=>{
+      const fr = new FileReader();
+      fr.onerror = rej;
+      fr.onload  = () => res(String(fr.result).split(',')[1]);
+      fr.readAsDataURL(blob);
+    });
+    const payload = JSON.stringify({
+      pid: pid,
+      item: itemLabel || `${taskId} item ${String(itemIdx+1).padStart(2,'0')}`,
+      filename: filename,
+      mime: blob.type || "application/octet-stream",
+      b64: base64
+    });
+    const r = await fetch(UPLOAD_URL, {
+      method:"POST",
+      headers:{ "Content-Type":"text/plain" },
+      body: payload
+    });
+    if (!r.ok) throw new Error("HTTP "+r.status);
+    const text = await r.text();
+    let data;
+    try{ data = JSON.parse(text); }catch(e){ throw new Error("Upload endpoint returned non-JSON response"); }
+    if (!data.ok) throw new Error(data.error || "Upload failed");
+    return data;
+  }
+
+  // ============== Consent flow ==============
+  function updateConsentContinue(){
+    const okChk   = !!consentChk.checked;
+    const okState = stateSel && String(stateSel.value || "").trim().length > 0;
+    const okCity  = citySel  && String(citySel.value  || "").trim().length > 0;
+    btnConsent.disabled = !(okChk && okState && okCity);
+  }
+  consentChk.addEventListener('change', updateConsentContinue);
+  if (stateSel) stateSel.addEventListener('change', updateConsentContinue);
+  if (citySel)  citySel.addEventListener('input',  updateConsentContinue);
+  updateConsentContinue();
+
+  btnConsent.addEventListener('click', ()=>{
+    if (!consentChk.checked) { alert('Please tick the consent box to continue.'); return; }
+    if (!stateSel || !String(stateSel.value || "").trim()){ alert("Please select your Bundesland (Austria)."); return; }
+    if (!citySel  || !String(citySel.value  || "").trim()){ alert("Please enter your city."); return; }
+    consentGiven    = true;
+    consentTimeIso  = new Date().toISOString();
+    try{
+      localStorage.setItem('consented','1');
+      localStorage.setItem('consent_time', consentTimeIso);
+      localStorage.setItem('session_id', sessionId);
+      localStorage.setItem('bundesland', stateSel.value);
+      localStorage.setItem('city', (citySel.value||"").trim());
+    }catch(e){}
+    show(scrTaskSel);
+    try{ if (scrConsent && scrConsent.parentNode) scrConsent.parentNode.removeChild(scrConsent); }catch(e){}
+  });
+
+  btnDecline.addEventListener('click', ()=>{
+    alert('You chose not to participate. This page will now close.');
+    try{ window.close(); }catch(e){}
+  });
+
+  // ============== Task selection + PID + Instructions ==============
+  function updatePidContinue(){
+    const ok = (pidEl.value || "").trim().length > 0;
+    btnPidContinue.disabled = !ok;
+  }
+  pidEl.addEventListener('input', updatePidContinue);
+  updatePidContinue();
+
+  function pickTask(tid){
+    selectedTaskId = tid;
+    const t = TASKS[tid];
+    taskItems = (t && Array.isArray(t.items)) ? t.items.slice() : [];
+    itemIdx = 0; currentItem = null;
+    show(scrPid);
+    updatePidContinue();
+  }
+  btnPickA.addEventListener('click', ()=> pickTask('A'));
+  btnPickB.addEventListener('click', ()=> pickTask('B'));
+  btnBackToTasks1.addEventListener('click', ()=> show(scrTaskSel));
+  btnBackToTasks2.addEventListener('click', ()=> show(scrTaskSel));
+
+  async function uploadConsentIfNeeded(pid){
+    if (consentUploaded) return;
+    if (!consentGiven || !consentTimeIso) return;
+    const taskAtPid   = selectedTaskId || "";
+    const consentBlob = buildConsentCsvBlob(pid, taskAtPid);
+    const consentName = `${pid}__CONSENT__${isoSafeNow()}__S${sessionId}.csv`;
+    try{
+      if (UPLOAD_URL){
+        await uploadBlob(consentBlob, consentName, pid, "CONSENT", "consent");
+        consentUploaded = true;
+      }else{ throw new Error("No upload URL set"); }
+    }catch(e){
+      console.warn(e);
+      saveLocal(consentBlob, consentName);
+      consentUploaded = true;
+    }
+  }
+
+  btnPidContinue.addEventListener('click', async ()=>{
+    if (btnPidContinue.disabled) return;
+    const pid = (pidEl.value||'').trim();
+    if (!pid){ alert("Please enter your Participant ID."); pidEl.focus(); updatePidContinue(); return; }
+    btnPidContinue.disabled = true;
+    pidEl.disabled = true;
+    btnBackToTasks1.disabled = true;
+    setOverlay(true, "Processing…", "Please wait. Do not close this tab.");
+    try{
+      await uploadConsentIfNeeded(pid);
+      const t = TASKS[selectedTaskId];
+      instrTitle.textContent = t ? t.name : "Task instructions";
+      instrBody.innerHTML    = (t && t.instructionsHtml) ? t.instructionsHtml : "<p class='subtitle'>Instructions not available.</p>";
+      show(scrInstr);
+    } finally {
+      setOverlay(false);
+      pidEl.disabled = false;
+      btnBackToTasks1.disabled = false;
+      updatePidContinue();
+    }
+  });
+
+  btnInstrOk.addEventListener('click', ()=>{ show(scrMic); });
+
+  // ============== Audio / mic init ==============
+  let micReady = false;
+  let audioCtx = null, stream = null, source = null, workletNode = null, zeroGain = null;
+  let selectedDeviceId = "";
+  let workletModuleUrl = null;
+  let testObjUrl = null;
+  let recording = false;
+  let recBuffers = [], totalLength = 0, sampleRate = 48000;
+  let lastBlob = null, lastDuration = 0;
+  let recPeak = 0, testPeak = 0, lastRecPeak = 0;
+  let recTimer = null, testTimer = null;
+  let recStartMs = 0, testStartMs = 0;
+  let testRecording = false;
+  let testBuffers = [], testTotalLength = 0;
+  let testBlob = null, testReady = false;
+
+  function setTestStatus(t){ testStatusEl.textContent = t; }
+
+  function computeLevel(input){
+    let sum = 0;
+    for (let i=0;i<input.length;i++) sum += input[i]*input[i];
+    const rms = Math.sqrt(sum / input.length);
+    const db  = 20*Math.log10(rms + 1e-12);
+    levelEl.textContent = `level: ${db.toFixed(1)} dBFS`;
+  }
+
+  function updatePeak(arr, isTest){
+    let peak = 0;
+    for (let i=0;i<arr.length;i++){ const a = Math.abs(arr[i]); if (a > peak) peak = a; }
+    if (isTest) testPeak = Math.max(testPeak, peak);
+    else        recPeak  = Math.max(recPeak,  peak);
+  }
+
+  function floatTo16BitPCM(view, offset, input){
+    for (let i = 0; i < input.length; i++, offset += 2){
+      let s = Math.max(-1, Math.min(1, input[i]));
+      s = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      view.setInt16(offset, s, true);
+    }
+  }
+
+  function writeWavHeader(view, sampleRate, numChannels, numFrames){
+    function wr(view,off,str){ for(let i=0;i<str.length;i++) view.setUint8(off+i, str.charCodeAt(i)); }
+    const bps=2, ba=numChannels*bps, br=sampleRate*ba;
+    wr(view,0,'RIFF'); view.setUint32(4,36+numFrames*ba,true);
+    wr(view,8,'WAVE'); wr(view,12,'fmt ');
+    view.setUint32(16,16,true); view.setUint16(20,1,true);
+    view.setUint16(22,numChannels,true); view.setUint32(24,sampleRate,true);
+    view.setUint32(28,br,true); view.setUint16(32,ba,true); view.setUint16(34,16,true);
+    wr(view,36,'data'); view.setUint32(40,numFrames*ba,true);
+  }
+
+  function encodeWavFromBuffers(buffers, totalLen){
+    const mono = new Float32Array(totalLen);
+    let off = 0;
+    for (const b of buffers){ mono.set(b, off); off += b.length; }
+    const numFrames = mono.length;
+    const buf  = new ArrayBuffer(44 + numFrames*2);
+    const view = new DataView(buf);
+    writeWavHeader(view, sampleRate, 1, numFrames);
+    floatTo16BitPCM(view, 44, mono);
+    return new Blob([view], {type:'audio/wav'});
+  }
+
+  function encodeWav(){ return encodeWavFromBuffers(recBuffers, totalLength); }
+
+  function resetTestUI(){
+    testRecording = false; testBuffers = []; testTotalLength = 0;
+    testBlob = null; testReady = false; testPeak = 0;
+    if (testTimer){ clearInterval(testTimer); testTimer = null; }
+    if (testObjUrl){ try{ URL.revokeObjectURL(testObjUrl); }catch(e){} testObjUrl = null; }
+    setTestStatus("test: not recorded");
+    btnTestStart.disabled = !micReady;
+    btnTestStop.disabled  = true;
+    btnTestPlay.disabled  = true;
+    btnTestRedo.disabled  = true;
+    testPlayer.style.display = "none";
+    testPlayer.src = "";
+    btnBeginTask.disabled = true;
+    if (btnBackToTask){ btnBackToTask.style.display = returnToRunAfterMic ? "inline-block" : "none"; }
+  }
+
+  function cleanupAudioOnFailure(){
+    try{ if (stream) stream.getTracks().forEach(t=>t.stop()); }catch(e){} stream = null;
+    try{ if (audioCtx && audioCtx.state !== 'closed') audioCtx.close(); }catch(e){} audioCtx = null;
+    source = null; workletNode = null; zeroGain = null;
+    if (workletModuleUrl){ try{ URL.revokeObjectURL(workletModuleUrl); }catch(e){} workletModuleUrl = null; }
+    micReady = false;
+    if (micSel){ micSel.innerHTML = '<option value="" selected>Enable microphone to list devices…</option>'; micSel.disabled = true; }
+    if (btnRefreshMics) btnRefreshMics.disabled = true;
+  }
+
+  async function populateMicList(){
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+    let devices = [];
+    try{ devices = await navigator.mediaDevices.enumerateDevices(); }catch(e){ return; }
+    const inputs = devices.filter(d => d.kind === "audioinput");
+    if (!micSel) return;
+    micSel.innerHTML = "";
+    if (inputs.length === 0){
+      const opt = document.createElement("option"); opt.value = ""; opt.textContent = "No microphone devices found";
+      micSel.appendChild(opt); micSel.disabled = true; return;
+    }
+    inputs.forEach((d, idx)=>{
+      const opt = document.createElement("option");
+      opt.value = d.deviceId; opt.textContent = d.label || `Microphone ${idx+1}`;
+      micSel.appendChild(opt);
+    });
+    try{
+      const track    = stream && stream.getAudioTracks && stream.getAudioTracks()[0];
+      const settings = track && track.getSettings ? track.getSettings() : {};
+      const currentId= settings.deviceId || selectedDeviceId || "";
+      if (currentId){ micSel.value = currentId; selectedDeviceId = micSel.value || selectedDeviceId; }
+      else { selectedDeviceId = micSel.value; }
+    }catch(e){ selectedDeviceId = micSel.value; }
+    micSel.disabled = false;
+    if (btnRefreshMics) btnRefreshMics.disabled = false;
+  }
+
+  async function switchMic(deviceId){
+    if (!deviceId || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+    if (!audioCtx || !workletNode) return;
+    if (testRecording){ alert("Please stop the test first."); return; }
+    if (recording){ alert("Please stop the recording first."); return; }
+    resetTestUI();
+    setMicStatus("mic: switching…");
+    try{ if (stream) stream.getTracks().forEach(t=>t.stop()); }catch(e){} stream = null;
+    try{ if (source) source.disconnect(); }catch(e){} source = null;
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({ audio:{
+        deviceId: { exact: deviceId }, channelCount:{ ideal:1 },
+        sampleRate:{ ideal:48000 }, noiseSuppression:false, echoCancellation:false, autoGainControl:false
+      }});
+      source = audioCtx.createMediaStreamSource(stream);
+      source.connect(workletNode);
+      selectedDeviceId = deviceId;
+      setMicStatus("mic: ready");
+      micReady = true;
+      testBox.style.display = "block";
+      resetTestUI();
+      await populateMicList();
+    }catch(e){
+      console.error(e);
+      setMicStatus("mic: error");
+      alert("Switching microphone failed. Please try a different device or reload the page.");
+      cleanupAudioOnFailure();
+      btnInit.disabled = false;
+    }
+  }
+
+  async function initMic(){
+    if (micReady) return;
+    btnInit.disabled = true;
+    setMicStatus("mic: starting…");
+    try{
+      const audioConstraints = {
+        channelCount:{ ideal:1 }, sampleRate:{ ideal:48000 },
+        noiseSuppression:false, echoCancellation:false, autoGainControl:false
+      };
+      if (selectedDeviceId){ audioConstraints.deviceId = { exact: selectedDeviceId }; }
+      stream   = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+      audioCtx = new (window.AudioContext||window.webkitAudioContext)({ sampleRate: 48000 });
+      try{ await audioCtx.resume(); }catch(e){}
+      sampleRate = audioCtx.sampleRate;
+      srEl.textContent = `sr: ${sampleRate} Hz`;
+      try{
+        source = audioCtx.createMediaStreamSource(stream);
+        const workletCode = `
+          class P extends AudioWorkletProcessor{
+            process(inputs){
+              const input = inputs[0];
+              if (!input || input.length === 0) return true;
+              const nCh = input.length, n = input[0].length;
+              const mono = new Float32Array(n);
+              for (let ch = 0; ch < nCh; ch++){
+                const data = input[ch];
+                if (!data) continue;
+                for (let i = 0; i < n; i++){ mono[i] += data[i] / nCh; }
+              }
+              this.port.postMessage(mono); return true;
+            }
+          }
+          registerProcessor('rec-p', P);
+        `;
+        workletModuleUrl = URL.createObjectURL(new Blob([workletCode],{type:'application/javascript'}));
+        try{ await audioCtx.audioWorklet.addModule(workletModuleUrl); }
+        finally { try{ URL.revokeObjectURL(workletModuleUrl); }catch(e){} workletModuleUrl = null; }
+        workletNode = new AudioWorkletNode(audioCtx,'rec-p');
+        zeroGain = audioCtx.createGain(); zeroGain.gain.value = 0.0;
+        source.connect(workletNode);
+        workletNode.connect(zeroGain);
+        zeroGain.connect(audioCtx.destination);
+        workletNode.port.onmessage = (e)=>{
+          const d = e.data;
+          if (testRecording) updatePeak(d, true);
+          if (recording)     updatePeak(d, false);
+          if (testRecording){
+            const copy = new Float32Array(d.length); copy.set(d);
+            testBuffers.push(copy); testTotalLength += copy.length; computeLevel(copy); return;
+          }
+          if (recording){
+            const copy = new Float32Array(d.length); copy.set(d);
+            recBuffers.push(copy); totalLength += copy.length; computeLevel(copy); return;
+          }
+          computeLevel(d);
+        };
+      } catch (e){ console.error(e); throw new Error("Audio initialisation failed (worklet unsupported or blocked)."); }
+      setMicStatus("mic: ready"); micReady = true;
+      await populateMicList();
+      testBox.style.display = "block";
+      resetTestUI();
+    } catch (e){
+      console.error(e);
+      cleanupAudioOnFailure();
+      setMicStatus("mic: error");
+      alert(
+        "Microphone initialisation failed.\n\n" +
+        "Please try a recent Chrome/Edge/Firefox, reload the page, and make sure microphone permissions are allowed."
+      );
+      btnInit.disabled = false;
+      return;
+    }
+    btnInit.disabled = true;
+  }
+
+  btnInit.addEventListener('click', initMic);
+  if (btnRefreshMics){ btnRefreshMics.addEventListener('click', async ()=>{ await populateMicList(); }); }
+  if (micSel){
+    micSel.addEventListener('change', ()=>{
+      const id = micSel.value || "";
+      if (!id) return;
+      selectedDeviceId = id;
+      if (micReady){ switchMic(id); }
+    });
+  }
+
+  function startTest(){
+    if (!micReady || !audioCtx) return;
+    if (audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
+    if (recording){ alert("Please finish the current recording first."); return; }
+    testRecording = true; testBuffers = []; testTotalLength = 0;
+    testBlob = null; testReady = false; testPeak = 0;
+    setTestStatus("test: recording…");
+    btnTestStart.disabled = true; btnTestStop.disabled = false;
+    btnTestPlay.disabled = true; btnTestRedo.disabled = true;
+    testPlayer.style.display = "none"; testPlayer.src = "";
+    btnBeginTask.disabled = true;
+    if (testTimer) clearInterval(testTimer);
+    testStartMs = Date.now();
+    testTimer = setInterval(()=>{ if (testRecording && (Date.now() - testStartMs) >= MAX_REC_SECONDS * 1000){ stopTest(); } }, 250);
+  }
+
+  function stopTest(){
+    if (!testRecording) return;
+    testRecording = false;
+    if (testTimer){ clearInterval(testTimer); testTimer = null; }
+    if (testPeak < SILENCE_PEAK_THRESHOLD){
+      setTestStatus("test: no audio detected ⚠");
+      alert("No audio detected in the test.\n\nPlease select a different microphone device (above) and try again, or check OS/browser microphone settings.");
+      resetTestUI(); return;
+    }
+    testBlob = encodeWavFromBuffers(testBuffers, testTotalLength);
+    testReady = true;
+    setTestStatus("test: ready (play or redo)");
+    btnTestStop.disabled = true; btnTestStart.disabled = true;
+    btnTestPlay.disabled = false; btnTestRedo.disabled = false;
+    testPlayer.style.display = "block";
+    if (testObjUrl){ try{ URL.revokeObjectURL(testObjUrl); }catch(e){} testObjUrl = null; }
+    testObjUrl = URL.createObjectURL(testBlob);
+    testPlayer.src = testObjUrl;
+    btnBeginTask.disabled = false;
+  }
+
+  function playTest(){ if (!testReady || !testPlayer.src) return; testPlayer.play().catch(()=>{}); }
+  function redoTest(){ resetTestUI(); }
+
+  btnTestStart.addEventListener('click', startTest);
+  btnTestStop.addEventListener('click',  stopTest);
+  btnTestPlay.addEventListener('click',  playTest);
+  btnTestRedo.addEventListener('click',  redoTest);
+
+  // ============== Run task navigation (NEW) ==============
+  function goToMicFromRun(){
+    if (recording){ alert("Please stop the recording first."); return; }
+    if (testRecording){ alert("Please stop the test recording first."); return; }
+    returnToRunAfterMic = true;
+    resetTestUI();
+    if (btnBackToTask){ btnBackToTask.style.display = "inline-block"; }
+    show(scrMic);
+  }
+  if (btnGoMic){ btnGoMic.addEventListener('click', goToMicFromRun); }
+
+  if (btnBackToTask){
+    btnBackToTask.addEventListener('click', ()=>{
+      if (!micReady){ alert('Please click "Enable microphone" first.'); return; }
+      if (!testReady){ alert("Please complete the test recording before returning to the task."); return; }
+      btnBackToTask.style.display = "none";
+      returnToRunAfterMic = false;
+      show(scrRun);
+      renderCurrentItem();
+    });
+  }
+
+  btnBeginTask.addEventListener('click', ()=>{
+    if (!micReady || !audioCtx || !stream){ alert('Please click "Enable microphone" first.'); return; }
+    if (!testReady){ alert('Please complete the test recording first (or redo it if needed).'); return; }
+    if (returnToRunAfterMic){
+      if (btnBackToTask) btnBackToTask.style.display = "none";
+      returnToRunAfterMic = false;
+      show(scrRun);
+      renderCurrentItem();
+      return;
+    }
+    startTaskRun();
+  });
+
+  // ============== Run task ==============
+  function renderCurrentItem(){
+    const t = TASKS[selectedTaskId];
+    runTaskLabel.textContent = t ? t.name : `Task ${selectedTaskId || "—"}`;
+    const N = taskItems.length || 0;
+    progressEl.textContent = `Item ${Math.min(itemIdx+1, Math.max(N,1))} / ${Math.max(N,1)}`;
+    currentItem = taskItems[itemIdx] || null;
+    if (currentItem && currentItem.primes){
+      primesBox.style.display = "block";
+      primesWords.innerHTML = "";
+      for (const w of currentItem.primes){
+        const span = document.createElement("span");
+        span.className = "prime-word"; span.textContent = w;
+        primesWords.appendChild(span);
+      }
+      groupTitleEl.textContent = "Record the 3 words and then the sentence (in one recording):";
+      runHint.innerHTML = 'Press <strong>Start recording</strong>. <strong>Record the three words above and the sentence.</strong> Press <strong>Stop</strong>, then <strong>Accept &amp; save</strong>.';
+    } else {
+      primesBox.style.display = "none";
+      primesWords.innerHTML = "";
+      groupTitleEl.textContent = "Read the sentence aloud:";
+      runHint.innerHTML = 'Press <strong>Start recording</strong>, read the sentence once, press <strong>Stop</strong>, then <strong>Accept &amp; save</strong>.';
+    }
+    promptDisplay.textContent = currentItem ? currentItem.promptText : "—";
+    recording = false; recBuffers = []; totalLength = 0;
+    lastBlob = null; lastDuration = 0; recPeak = 0; lastRecPeak = 0;
+    if (recTimer){ clearInterval(recTimer); recTimer = null; }
+    setRunStatus("idle");
+    btnStartRec.disabled = (N === 0);
+    btnStopRec.disabled  = true;
+    btnAccept.disabled   = true;
+    btnNext.disabled     = true;
+  }
+
+  function startTaskRun(){
+    const t = TASKS[selectedTaskId];
+    if (!t){ alert("Task not found."); show(scrTaskSel); return; }
+    show(scrRun);
+    renderCurrentItem();
+  }
+
+  function startRecording(){
+    if (recording) return;
+    if (!audioCtx) return;
+    if (testRecording){ alert("Please stop the test recording first."); return; }
+    if (audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
+    recBuffers = []; totalLength = 0; lastBlob = null; lastDuration = 0; recPeak = 0;
+    recording = true;
+    setRunStatus("recording…");
+    btnStartRec.disabled = true; btnStopRec.disabled = false;
+    btnAccept.disabled = true;   btnNext.disabled    = true;
+    if (recTimer) clearInterval(recTimer);
+    recStartMs = Date.now();
+    recTimer = setInterval(()=>{ if (recording && (Date.now() - recStartMs) >= MAX_REC_SECONDS * 1000){ stopRecording(); } }, 250);
+  }
+
+  function stopRecording(){
+    if (!recording) return;
+    recording = false;
+    if (recTimer){ clearInterval(recTimer); recTimer = null; }
+    if (recPeak < SILENCE_PEAK_THRESHOLD){
+      setRunStatus("no audio detected ⚠");
+      alert("No audio detected in this recording.\n\nPlease check that your microphone is working (you should see the level meter moving), then record again.\n");
+      lastBlob = null; lastDuration = 0;
+      btnStopRec.disabled  = true;
+      btnAccept.disabled   = true;
+      btnStartRec.disabled = false;
+      return;
+    }
+    lastBlob     = encodeWav();
+    lastDuration = totalLength / sampleRate;
+    lastRecPeak  = recPeak;
+    setRunStatus("stopped");
+    btnStopRec.disabled  = true;
+    btnAccept.disabled   = false;
+  }
+
+  async function acceptAndSave(){
+    if (!lastBlob || !currentItem){ alert("Please record the sentence first."); return; }
+    if (lastRecPeak < SILENCE_PEAK_THRESHOLD){
+      alert("This recording appears to contain no audio. Please record again.");
+      lastBlob = null; btnAccept.disabled = true; btnStartRec.disabled = false; return;
+    }
+    const pid    = (pidEl.value||'anon').trim();
+    const taskId = selectedTaskId || "X";
+    const wavName = buildWavNameFromItem(currentItem);
+    setOverlay(true, "Uploading… please wait", "This can take a few seconds. Do not close this tab.");
+    btnAccept.disabled   = true; btnNext.disabled    = true;
+    btnStopRec.disabled  = true; btnStartRec.disabled= true;
+    const acceptedAt = new Date().toISOString();
+    try{
+      if (UPLOAD_URL){ await uploadBlob(lastBlob, wavName, pid, taskId); setRunStatus("uploaded ✓"); }
+      else { throw new Error("No upload URL set"); }
+    }catch(e){
+      console.warn(e); saveLocal(lastBlob, wavName); setRunStatus("saved locally");
+    }
+    sessionRows.push([
+      sessionId, sessionStartIso, pid,
+      taskId, currentItem.lang || "", currentItem.condition || "",
+      currentItem.targetToken || "",
+      String(itemIdx+1), currentItem.promptText || "",
+      (currentItem.primes ? currentItem.primes.join("|") : ""),
+      wavName, acceptedAt, lastDuration.toFixed(3), String(sampleRate)
+    ]);
+    setOverlay(false);
+    btnNext.disabled = false;
+  }
+
+  function nextItem(){
+    itemIdx++;
+    if (itemIdx >= taskItems.length){ finishTask(); return; }
+    renderCurrentItem();
+  }
+
+  async function finishTask(){
+    const pid    = (pidEl.value||'anon').trim();
+    const taskId = selectedTaskId || "X";
+    const csvBlob= buildSessionCsvBlob();
+    const csvName= `${pid}__${taskId}__SESSION__${isoSafeNow()}__S${sessionId}.csv`;
+    setOverlay(true, "Uploading session log…", "Please wait.");
+    let csvUploaded = false;
+    try{
+      if (UPLOAD_URL){ await uploadBlob(csvBlob, csvName, pid, taskId, "session_log"); csvUploaded = true; }
+      else { throw new Error("No upload URL set"); }
+    }catch(e){ console.warn(e); saveLocal(csvBlob, csvName); }
+    finally{ setOverlay(false); }
+    show(scrDone);
+    const t = TASKS[selectedTaskId];
+    const taskName = t ? t.name : `Task ${taskId}`;
+    summaryEl.textContent = `${taskName} complete for participant ${pid}. Recordings saved: ${taskItems.length}. Session log: ${csvUploaded ? "uploaded ✓" : "saved locally"}.`;
+  }
+
+  btnStartRec.addEventListener('click', startRecording);
+  btnStopRec.addEventListener('click',  stopRecording);
+  btnAccept.addEventListener('click',   acceptAndSave);
+  btnNext.addEventListener('click',     nextItem);
+
+  // ============== Done navigation ==============
+  btnBackToTasksDone.addEventListener('click', ()=>{
+    selectedTaskId = null; taskItems = []; itemIdx = 0; currentItem = null;
+    show(scrTaskSel);
+    updatePidContinue();
+  });
+})();
+</script>
+</body>
+</html>
