@@ -23,8 +23,8 @@
   ];
 
   const CARRIERS_A = {
-    C1: "Say H__d again.",
-    C2: "We said H__d together."
+    C1: "Say h__d again.",
+    C2: "We said h__d together."
   };
 
   const TASK_A_SEED = 1337;
@@ -93,9 +93,7 @@
       const v = byKey[vKey];
       const template = carriers[cond];
       // For English: replace "H__" with the target token; for German keep as-is (H__t)
-      const promptText = taskId === "A"
-        ? template.replace("H__d", `h${v.targetToken.slice(1, -1)}d`)
-        : template;
+      const promptText = template;
       return {
         taskId,
         lang,
