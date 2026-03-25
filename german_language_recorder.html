@@ -94,7 +94,7 @@
       const template = carriers[cond];
       // For English: replace "H__" with the target token; for German keep as-is (H__t)
       const promptText = taskId === "A"
-        ? template.replace("H__", v.targetToken)
+        ? template.replace("H__d", `h${v.targetToken.slice(1, -1)}d`)
         : template;
       return {
         taskId,
