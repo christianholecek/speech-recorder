@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Sprachaufnahme-Tool</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 :root[data-theme="light"]{
   --uni-yellow:#ffd500; --uni-black:#000; --uni-grey:#c6c6c6; --uni-white:#fff;
@@ -11,6 +12,7 @@
   --ink: var(--uni-black); --muted: #444; --accent: var(--uni-yellow);
   --border: #e6e6e6; --pill-bg: #f7f7f7; --panel: #ffffff; --btn-fg: #000000;
   --shadow: 0 10px 30px rgba(0,0,0,.08);
+  --success: #1a8a3c; --error: #c00;
 }
 :root{ color-scheme: light; }
 html,body{ margin:0;height:100%; background:var(--page-bg); color:var(--ink); font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial }
@@ -27,6 +29,9 @@ button{ background:var(--accent);border:1px solid var(--border);color:var(--btn-
 button[disabled]{opacity:.5;cursor:not-allowed}
 .btn-ghost{background:var(--pill-bg);color:var(--ink);border:1px solid var(--border)}
 .pill{display:inline-block;background:var(--pill-bg);border:1px solid var(--border);border-radius:999px;padding:6px 10px;color:var(--muted);font-size:12px}
+.pill-uploading{background:#fff8dc;border-color:#e6c800;color:#7a6800;}
+.pill-ok{background:#e6f7ec;border-color:#7ecfa0;color:var(--success);}
+.pill-error{background:#ffeaea;border-color:#f5a0a0;color:var(--error);}
 .screen{display:none}
 .screen.active{display:block}
 .subtitle{color:var(--muted)}
@@ -58,11 +63,38 @@ input[type="checkbox"]{ width:auto !important;background:transparent !important;
 .scroll-hint{ display:inline-flex;align-items:center;gap:8px;margin:8px 0 0;font-size:12px;color:var(--muted); }
 .scroll-dot{ width:8px;height:8px;border-radius:50%;background:var(--accent);border:1px solid var(--border); }
 
+/* Task grid with completion badges */
 .task-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
-.task-card{ border:1px solid var(--border);border-radius:16px;padding:14px;background:var(--panel);box-shadow:0 6px 18px rgba(0,0,0,.05); }
+.task-card{ border:1px solid var(--border);border-radius:16px;padding:14px;background:var(--panel);box-shadow:0 6px 18px rgba(0,0,0,.05);position:relative; }
 .task-card h3{margin:0 0 6px;font-size:18px}
 .task-card p{margin:0 0 10px}
+.task-done-badge{
+  position:absolute;top:12px;right:12px;
+  background:#e6f7ec;border:1px solid #7ecfa0;color:var(--success);
+  border-radius:999px;padding:4px 10px;font-size:12px;font-weight:700;
+  display:none;
+}
+.task-card.done .task-done-badge{display:inline-block;}
+.task-card.done{border-color:#7ecfa0;background:#f6fdf8;}
+.task-card.done button{opacity:.6;}
 @media (max-width:720px){ .task-grid{grid-template-columns:1fr} }
+
+/* Background upload overlay */
+.bg-upload-overlay{
+  position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.65);backdrop-filter:blur(2px);z-index:9998;
+}
+.bg-upload-overlay.active{display:flex;}
+.bg-upload-box{
+  width:min(420px,88vw);background:var(--panel);border:1px solid var(--border);
+  border-radius:16px;box-shadow:var(--shadow);padding:20px 24px;
+}
+.bg-upload-box .row{justify-content:flex-start;gap:14px;}
+.bg-upload-spinner{ width:22px;height:22px;flex-shrink:0;border-radius:50%;border:3px solid var(--border);border-top-color:var(--ink);animation:spin 1s linear infinite; }
+.bg-upload-spinner.done{ border:3px solid #7ecfa0;border-top-color:#7ecfa0;animation:none; }
+.bg-upload-spinner.error{ border:3px solid #f5a0a0;border-top-color:#f5a0a0;animation:none; }
+.bg-upload-title{ font-weight:700;font-size:15px;margin:0 0 2px; }
+.bg-upload-sub{ font-size:13px;color:var(--muted);margin:0; }
 
 .overlay{ position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(255,255,255,.72);backdrop-filter:blur(2px);z-index:9999; }
 .overlay.active{display:flex}
@@ -73,6 +105,24 @@ input[type="checkbox"]{ width:auto !important;background:transparent !important;
 ul{margin:8px 0 0 18px;color:var(--muted)}
 li{margin:4px 0}
 
+/* Final thank you overlay */
+.final-overlay{
+  position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.92);backdrop-filter:blur(4px);z-index:10000;
+}
+.final-overlay.active{display:flex;}
+.final-box{
+  width:min(560px,92vw);background:var(--card);border:1px solid var(--border);
+  border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.12);padding:32px;text-align:center;
+}
+.final-box .checkmark{font-size:56px;margin-bottom:12px;display:block;}
+.final-box h2{margin:0 0 12px;font-size:24px;color:var(--ink);}
+.final-box p{color:var(--muted);margin:0 0 20px;font-size:16px;line-height:1.5;}
+.final-box .close-hint{
+  background:var(--pill-bg);border:1px solid var(--border);border-radius:12px;
+  padding:12px 16px;font-size:14px;color:var(--muted);
+}
+
 .prime-box{ background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-top:10px; }
 .prime-title{font-weight:700;margin:0 0 6px}
 .prime-words{display:flex;gap:8px;flex-wrap:wrap}
@@ -82,22 +132,13 @@ li{margin:4px 0}
 .test-prompt{ font-size:18px;font-weight:700;margin:8px 0 10px; }
 audio{width:100%}
 
-/* PID screen toggle */
 .pid-toggle-row{display:flex;gap:8px;margin-bottom:16px;}
-.pid-toggle-btn{
-  flex:1;padding:10px 14px;border-radius:12px;border:1px solid var(--border);
-  background:var(--pill-bg);color:var(--muted);font-weight:600;cursor:pointer;
-  transition:background .15s,color .15s,border-color .15s;font-family:inherit;font-size:inherit;
-}
+.pid-toggle-btn{ flex:1;padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:var(--pill-bg);color:var(--muted);font-weight:600;cursor:pointer;transition:background .15s,color .15s,border-color .15s;font-family:inherit;font-size:inherit; }
 .pid-toggle-btn.active{background:var(--accent);color:var(--btn-fg);border-color:var(--accent);}
 .pid-section{display:none;}
 .pid-section.active{display:block;}
 .pid-divider{border:none;border-top:1px solid var(--border);margin:16px 0;}
-.self-id-preview{
-  display:inline-flex;align-items:center;gap:8px;
-  background:var(--pill-bg);border:1px solid var(--border);
-  border-radius:12px;padding:10px 14px;margin-top:10px;
-}
+.self-id-preview{ display:inline-flex;align-items:center;gap:8px;background:var(--pill-bg);border:1px solid var(--border);border-radius:12px;padding:10px 14px;margin-top:10px; }
 .self-id-preview .label{color:var(--muted);font-size:13px;}
 .self-id-preview .value{font-weight:700;font-size:16px;font-family:monospace;}
 </style>
@@ -126,10 +167,10 @@ audio{width:100%}
       <li>Für jede Aufnahme: Drücken Sie <strong>Aufnahme starten</strong>, warten Sie eine Sekunde, sprechen Sie dann. Warten Sie nach dem Sprechen eine Sekunde und drücken Sie dann <strong>Stopp</strong>.</li>
     </ul><br>
     <p><strong>Mikrofonberechtigung:</strong> Ihr Browser wird Sie um Erlaubnis bitten, auf Ihr Mikrofon zuzugreifen. Bitte klicken Sie auf <strong>Zulassen</strong>. Auf der Mikrofon-Einrichtungsseite können Sie eine <strong>Testaufnahme</strong> machen, um Ihr Mikrofon zu überprüfen. Testaufnahmen werden <strong>nicht gespeichert</strong>.</p>
-    <p><strong>Aufnahmen speichern:</strong> Klicken Sie nach jedem Satz auf <strong>Akzeptieren &amp; speichern</strong>. Ihre Aufnahme wird hochgeladen (das kann einige Sekunden dauern). Sobald der Upload abgeschlossen ist, können Sie zum nächsten Satz weitergehen.</p>
+    <p><strong>Aufnahmen speichern:</strong> Klicken Sie nach jedem Satz auf <strong>Akzeptieren &amp; speichern</strong>. Ihre Aufnahme wird im Hintergrund hochgeladen, während Sie bereits mit dem nächsten Satz weitermachen können.</p>
     <p><strong>Daten:</strong> Audioaufnahmen und Antworten werden sicher gespeichert und für Forschungszwecke verwendet.</p>
     <p><strong>Freiwilligkeit:</strong> Die Teilnahme ist freiwillig. Sie können jederzeit vor der Einreichung zurücktreten.</p>
-    </div>
+  </div>
   <div class="scroll-hint"><span class="scroll-dot"></span>Im Feld nach unten scrollen, um alle Informationen zu lesen ↓</div>
   <label style="display:flex;align-items:center;gap:10px;margin-top:12px">
     <input type="checkbox" id="consentChk" />
@@ -147,14 +188,16 @@ audio{width:100%}
   <h2>Aufgabe auswählen</h2>
   <p class="subtitle">Wählen Sie die Aufgabe aus, die Sie durchführen möchten.</p>
   <div class="task-grid">
-    <div class="task-card">
+    <div class="task-card" id="taskCardA">
+      <span class="task-done-badge">✓ Abgeschlossen</span>
       <h3>Aufgabe A — Englisches Reimen</h3>
-      <p class="subtitle">Sprechen Sie  3 Reimwörter gefolgt von einem Satz.</p>
+      <p class="subtitle">Sprechen Sie 3 Reimwörter gefolgt von einem Satz.</p>
       <button id="btnPickA" type="button">Aufgabe A auswählen</button>
     </div>
-    <div class="task-card">
+    <div class="task-card" id="taskCardB">
+      <span class="task-done-badge">✓ Abgeschlossen</span>
       <h3>Aufgabe B — Deutsches Reimen</h3>
-      <p class="subtitle">Sprechen Sie  3 Reimwörter gefolgt von einem Satz.</p>
+      <p class="subtitle">Sprechen Sie 3 Reimwörter gefolgt von einem Satz.</p>
       <button id="btnPickB" type="button">Aufgabe B auswählen</button>
     </div>
   </div>
@@ -165,13 +208,10 @@ audio{width:100%}
 <div id="scr-pid" class="screen">
   <h2>Angaben zur Person</h2>
   <p class="subtitle" style="margin-bottom:14px">Haben Sie eine Teilnehmer-ID von der Versuchsleitung erhalten?</p>
-
   <div class="pid-toggle-row">
     <button class="pid-toggle-btn active" id="btnHasId" type="button">Ja — ich habe eine Teilnehmer-ID</button>
     <button class="pid-toggle-btn" id="btnNoId" type="button">Nein — ich verwende meine Initialen</button>
   </div>
-
-  <!-- Abschnitt: vergebene ID -->
   <div id="pidSectionId" class="pid-section active">
     <div class="row" style="width:100%;align-items:flex-start;gap:10px">
       <div style="flex:2;min-width:200px">
@@ -193,8 +233,6 @@ audio{width:100%}
       </div>
     </div>
   </div>
-
-  <!-- Abschnitt: selbst generierte ID -->
   <div id="pidSectionSelf" class="pid-section">
     <p class="subtitle" style="margin:0 0 12px">Ihre anonyme ID wird aus Ihren Initialen, Ihrem Geburtsjahr und Ihrem Geschlecht erstellt – es werden keine personenbezogenen Daten direkt gespeichert.</p>
     <div class="row" style="width:100%;align-items:flex-start;gap:10px">
@@ -222,24 +260,16 @@ audio{width:100%}
       </div>
     </div>
   </div>
-
   <hr class="pid-divider" />
-
   <p style="margin:0 0 8px;font-weight:600;color:var(--ink)">Woher kommen Sie?</p>
   <div class="row" style="width:100%;align-items:flex-start">
     <div style="flex:1;min-width:200px">
       <label for="stateSel">Bundesland (Österreich) <span style="color:#c00">*</span></label>
       <select id="stateSel">
         <option value="" selected disabled>Bitte auswählen…</option>
-        <option>Burgenland</option>
-        <option>Kärnten</option>
-        <option>Niederösterreich</option>
-        <option>Oberösterreich</option>
-        <option>Salzburg</option>
-        <option>Steiermark</option>
-        <option>Tirol</option>
-        <option>Vorarlberg</option>
-        <option>Wien</option>
+        <option>Burgenland</option><option>Kärnten</option><option>Niederösterreich</option>
+        <option>Oberösterreich</option><option>Salzburg</option><option>Steiermark</option>
+        <option>Tirol</option><option>Vorarlberg</option><option>Wien</option>
       </select>
     </div>
     <div style="flex:1;min-width:200px">
@@ -247,7 +277,6 @@ audio{width:100%}
       <input id="citySel" placeholder="z. B. Graz" />
     </div>
   </div>
-
   <div class="row" style="margin-top:16px">
     <button id="btnPidContinue" type="button" disabled>Weiter</button>
     <button id="btnBackToTasks1" class="btn-ghost" type="button">Zurück</button>
@@ -273,9 +302,7 @@ audio{width:100%}
   <div style="margin-top:10px">
     <label for="micSel">Mikrofongerät</label>
     <div class="row">
-      <select id="micSel" disabled>
-        <option value="" selected>Mikrofon aktivieren, um Geräte aufzulisten…</option>
-      </select>
+      <select id="micSel" disabled><option value="" selected>Mikrofon aktivieren, um Geräte aufzulisten…</option></select>
       <button id="btnRefreshMics" class="btn-ghost" type="button" disabled>Liste aktualisieren</button>
     </div>
     <p class="footer" style="margin-top:6px">Wenn Ihre Aufnahmen still sind, wählen Sie ein anderes Gerät und wiederholen Sie den Test.</p>
@@ -290,7 +317,7 @@ audio{width:100%}
   </div>
   <div id="testBox" class="test-box" style="display:none">
     <div class="test-title">Testaufnahme</div>
-    <div class="subtitle">Drücken Sie <strong>Test starten</strong>, warten Sie eine Sekunde, lesen Sie den Satz, warten Sie eine Sekunde, dann drücken Sie <strong>Test stoppen</strong>. Sie können den Test beliebig oft wiederholen. Testaufnahmen werden nicht gespeichert.</div>
+    <div class="subtitle">Drücken Sie <strong>Test starten</strong>, warten Sie eine Sekunde, lesen Sie den Satz, warten Sie eine Sekunde, dann drücken Sie <strong>Test stoppen</strong>. Testaufnahmen werden nicht gespeichert.</div>
     <div class="test-prompt" id="testPrompt">Bitte sagen Sie: „Der Nordwind und die Sonne stritten sich, wer von ihnen beiden wohl der Stärkere wäre."</div>
     <div class="row" style="margin-top:10px">
       <button id="btnTestStart" type="button" disabled>Test starten</button>
@@ -311,6 +338,7 @@ audio{width:100%}
     <span class="pill" id="progress">Item 1 / N</span>
     <span class="pill" id="runStatus">bereit</span>
   </div>
+
   <div id="primesBox" class="prime-box" style="display:none">
     <div class="prime-title">Sprechen Sie diese drei Wörter laut aus:</div>
     <div class="prime-words" id="primesWords"></div>
@@ -318,12 +346,11 @@ audio{width:100%}
   <div style="margin-top:8px">
     <div class="listInfo" id="groupTitle"></div>
     <div class="prompt" id="promptDisplay">—</div>
-    <p class="subtitle" id="runHint">Drücken Sie <strong>Aufnahme starten</strong>, lesen Sie den Satz einmal vor, drücken Sie <strong>Stopp</strong>, dann <strong>Akzeptieren &amp; speichern</strong>.</p>
+    <p class="subtitle" id="runHint">Drücken Sie <strong>Aufnahme starten</strong>, lesen Sie den Satz einmal vor, dann drücken Sie <strong>Aufnahme stoppen &amp; speichern</strong>.</p>
   </div>
   <div class="row" style="margin-top:12px">
     <button id="btnStartRec">Aufnahme starten</button>
-    <button id="btnStopRec" class="btn-ghost" disabled>Stopp</button>
-    <button id="btnAccept" disabled>Akzeptieren &amp; speichern</button>
+    <button id="btnStopRec" class="btn-ghost" disabled>Aufnahme stoppen &amp; speichern</button>
     <button id="btnNext" class="btn-ghost" disabled>Weiter ▶</button>
     <button id="btnGoMic" class="btn-ghost" type="button">Mikrofon einrichten</button>
   </div>
@@ -336,12 +363,12 @@ audio{width:100%}
   <div class="row" style="margin-top:12px">
     <button id="btnBackToTasksDone" type="button">Zurück zur Aufgabenauswahl</button>
   </div>
-  <p class="footer">Falls ein Upload fehlgeschlagen ist, wurden die Dateien als lokale Downloads angeboten.</p>
+  <p class="footer"></p>
 </div>
 
 </div></div>
 
-<!-- Upload-Overlay -->
+<!-- Upload-Overlay (used only for consent + final CSV) -->
 <div id="overlay" class="overlay" aria-live="polite" aria-busy="true">
   <div class="box">
     <div class="row">
@@ -354,23 +381,64 @@ audio{width:100%}
   </div>
 </div>
 
+<!-- Background Upload Overlay -->
+<div id="bgUploadOverlay" class="bg-upload-overlay">
+  <div class="bg-upload-box">
+    <div class="row">
+      <div class="bg-upload-spinner" id="bgUploadSpinner"></div>
+      <div style="flex:1">
+        <div class="bg-upload-title" id="bgUploadTitle">Aufnahme wird hochgeladen…</div>
+        <div class="bg-upload-sub" id="bgUploadSub">Bitte warten Sie einen Moment.</div>
+      </div>
+    </div>
+    <div id="bgUploadRetryRow" style="display:none;margin-top:14px">
+      <button id="btnRetryUpload" type="button">Erneut versuchen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Zip Fallback Overlay -->
+<div id="zipOverlay" class="bg-upload-overlay">
+  <div class="bg-upload-box" style="max-width:480px">
+    <div class="bg-upload-title" style="font-size:16px;margin-bottom:8px">⚠ Aufnahmen konnten nicht hochgeladen werden</div>
+    <div class="bg-upload-sub" style="margin-bottom:14px;line-height:1.5">
+      Ihre Aufnahmen wurden als ZIP-Datei auf Ihrem Computer gespeichert. Bitte senden Sie diese Datei an die Versuchsleitung. Wenn kein Download erschienen ist, wenden Sie sich bitte direkt an die Versuchsleitung.
+    </div>
+    <div id="zipOkRow" style="margin-top:4px">
+      <button id="btnZipOk" type="button">Verstanden – weiter</button>
+    </div>
+  </div>
+</div>
+
+<!-- Final Thank You Overlay -->
+<div id="finalOverlay" class="final-overlay">
+  <div class="final-box">
+    <span class="checkmark">🎉</span>
+    <h2>Vielen herzlichen Dank!</h2>
+    <p>Sie haben beide Aufgaben erfolgreich abgeschlossen.<br>Ihre Aufnahmen wurden gespeichert.</p>
+    <div class="close-hint">Sie können dieses Browserfenster jetzt schließen.</div>
+  </div>
+</div>
+
 <script>
 (function(){
   const UPLOAD_URL = "https://script.google.com/macros/s/AKfycbyu__fIr1DfRuYwVV12q17YJVYGRxHWv0DtG6VLJGqkCv8Rmz0y0UC_iZikr8NcFB14iQ/exec";
   const MAX_REC_SECONDS = 30;
   const SILENCE_PEAK_THRESHOLD = 0.01;
+  const MAX_UPLOAD_RETRIES = 5;
+  const RETRY_DELAYS_MS = [2000, 4000, 8000, 15000, 25000];
 
   const TASK_A_VOWELS = [
     { key:"i_long",   targetToken:"heed",  primes:["need","seed","feed"] },
     { key:"i_short",  targetToken:"hid",   primes:["kid","lid","bid"] },
     { key:"e_short",  targetToken:"head",  primes:["bed","fed","led"] },
-    { key:"ae",       targetToken:"had",   primes:["bad","mad","sad"] },
-    { key:"a_short",  targetToken:"hud",   primes:["bud","mud","cud"] },
-    { key:"a_long",   targetToken:"hard",  primes:["card","lard","yard"] },
-    { key:"o_short",  targetToken:"hod",   primes:["cod","nod","pod"] },
-    { key:"o_long",   targetToken:"hoard", primes:["fraud","sawed","clawed"] },
+    { key:"ae",       targetToken:"had",   primes:["sad","mad","bad"] },
+    { key:"a_short",  targetToken:"hud",   primes:["cud","bud","mud"] },
+    { key:"a_long",   targetToken:"hard",  primes:["lard","yard","card"] },
+    { key:"o_short",  targetToken:"hod",   primes:["pod","cod","nod"] },
+    { key:"o_long",   targetToken:"hoard", primes:["clawed","sawed","fraud"] },
     { key:"u_short",  targetToken:"hood",  primes:["good","could","would"] },
-    { key:"u_long",   targetToken:"who'd", primes:["food","mood","dude"] },
+    { key:"u_long",   targetToken:"who'd", primes:["dude","mood","food"] },
     { key:"er",       targetToken:"herd",  primes:["nerd","bird","third"] }
   ];
   const CARRIERS_A = { C1: "Say h__d again.", C2: "We said h__d together." };
@@ -386,7 +454,7 @@ audio{width:100%}
     { key:"y_long",  targetToken:"hueht", primes:["müht","blüht","glüht"] },
     { key:"y_short", targetToken:"hyt",   primes:["Bütt","Glück","Stück"] },
     { key:"oe_long", targetToken:"hoeht", primes:["blöd","öd","löt"] },
-    { key:"oe_short",targetToken:"hoet",  primes:["höll","könn","gönn"] },
+    { key:"oe_short",targetToken:"hoet",  primes:["höll","könn","gött"] },
     { key:"o_open",  targetToken:"hot",   primes:["Schrott","Gott","Spott"] },
     { key:"o_long",  targetToken:"hoot",  primes:["Boot","Brot","Not"] },
     { key:"u_long",  targetToken:"huht",  primes:["gut","Blut","Mut"] },
@@ -441,7 +509,7 @@ audio{width:100%}
     },
     B: {
       id: "B", langCode: "G", name: "Aufgabe B — Deutsches Reimen",
-      instructionsHtml: `<p><strong>Aufgabe B:</strong> Für jedes Item:</p><ul><li>Sie sehen <strong>drei deutsche Wörter</strong>.</li><li>Diese drei Wörter <strong>reimen sich mit dem fehlenden Wort im Satz</strong>. Der Satz zeigt <strong>H__t</strong> als Hinweis.</li><li>Drücken Sie <strong>Aufnahme starten</strong>.</li><li><strong>In derselben Aufnahme</strong> sprechen Sie zuerst die <strong>drei Wörter</strong> und lesen dann den <strong>Satz</strong> laut vor.</li><li>Das fehlende Wort im Satz kann ein <strong>Kunstwort</strong> sein – das ist beabsichtigt. Bitte sprechen Sie es genau so aus, wie es angegeben ist, und „korrigieren" Sie es nicht.</li><li><strong>Beispiel:</strong> <em>Lied – sieht – zieht</em> → <strong>Er hat hiet gesagt.</strong></li><li>Drücken Sie <strong>Stopp</strong> → <strong>Akzeptieren &amp; speichern</strong>.</li></ul>`,
+      instructionsHtml: `<p><strong>Aufgabe B:</strong> Für jedes Item:</p><ul><li>Sie sehen <strong>drei deutsche Wörter</strong>.</li><li>Diese drei Wörter <strong>reimen sich mit dem fehlenden Wort im Satz</strong>. Der Satz zeigt <strong>H__t</strong> als Hinweis.</li><li>Drücken Sie <strong>Aufnahme starten</strong>.</li><li><strong>In derselben Aufnahme</strong> sprechen Sie zuerst die <strong>drei Wörter</strong> und lesen dann den <strong>Satz</strong> laut vor.</li><li>Das fehlende Wort im Satz kann ein <strong>Kunstwort</strong> sein – das ist beabsichtigt. Bitte sprechen Sie es genau so aus, wie es angegeben ist.</li><li><strong>Beispiel:</strong> <em>Lied – sieht – zieht</em> → <strong>Er hat hiet gesagt.</strong></li><li>Drücken Sie <strong>Stopp</strong> → <strong>Akzeptieren &amp; speichern</strong>.</li></ul>`,
       items: buildVowelItems(TASK_B_VOWELS, CARRIERS_B, TASK_B_SEED, "B", "G")
     }
   };
@@ -461,6 +529,8 @@ audio{width:100%}
   const citySel      = $('#citySel');
   const btnPickA     = $('#btnPickA');
   const btnPickB     = $('#btnPickB');
+  const taskCardA    = $('#taskCardA');
+  const taskCardB    = $('#taskCardB');
   const pidEl        = $('#pid');
   const btnPidContinue  = $('#btnPidContinue');
   const btnBackToTasks1 = $('#btnBackToTasks1');
@@ -493,7 +563,6 @@ audio{width:100%}
   const primesWords  = $('#primesWords');
   const btnStartRec  = $('#btnStartRec');
   const btnStopRec   = $('#btnStopRec');
-  const btnAccept    = $('#btnAccept');
   const btnNext      = $('#btnNext');
   const btnGoMic     = $('#btnGoMic');
   const summaryEl    = $('#summary');
@@ -501,7 +570,16 @@ audio{width:100%}
   const overlay      = $('#overlay');
   const overlayTitle = $('#overlayTitle');
   const overlayMsg   = $('#overlayMsg');
-  // PID-Toggle-Elemente
+  const finalOverlay = $('#finalOverlay');
+  const bgUploadOverlay  = $('#bgUploadOverlay');
+  const bgUploadSpinner  = $('#bgUploadSpinner');
+  const bgUploadTitle    = $('#bgUploadTitle');
+  const bgUploadSub      = $('#bgUploadSub');
+  const bgUploadRetryRow = $('#bgUploadRetryRow');
+  const btnRetryUpload   = $('#btnRetryUpload');
+  const zipOverlay       = $('#zipOverlay');
+  const btnZipOk         = $('#btnZipOk');
+
   const btnHasId       = $('#btnHasId');
   const btnNoId        = $('#btnNoId');
   const pidSectionId   = $('#pidSectionId');
@@ -527,6 +605,67 @@ audio{width:100%}
     overlay.classList.toggle('active', !!on);
   }
 
+  // Background upload overlay
+  function setUploadBar(state, text){
+    bgUploadSpinner.className = 'bg-upload-spinner';
+    bgUploadRetryRow.style.display = 'none';
+    if (state === 'hidden'){
+      bgUploadOverlay.classList.remove('active');
+      return;
+    }
+    bgUploadOverlay.classList.add('active');
+    if (state === 'ok'){
+      bgUploadSpinner.classList.add('done');
+      bgUploadTitle.textContent = 'Gespeichert ✓';
+      bgUploadSub.textContent   = '';
+      setTimeout(()=>{ bgUploadOverlay.classList.remove('active'); }, 1200);
+    } else if (state === 'error'){
+      bgUploadSpinner.classList.add('error');
+      bgUploadTitle.textContent = 'Upload fehlgeschlagen';
+      bgUploadSub.textContent   = text || 'Bitte überprüfen Sie Ihre Internetverbindung.';
+      bgUploadRetryRow.style.display = 'block';
+    } else {
+      bgUploadTitle.textContent = 'Aufnahme wird hochgeladen…';
+      bgUploadSub.textContent   = text || 'Bitte warten Sie einen Moment.';
+    }
+  }
+
+  // Tracks blobs that failed all retries + manual retry: { blob, filename }
+  const failedUploads = [];
+  let retryCallback = null;
+  btnRetryUpload.addEventListener('click', ()=>{ if (retryCallback) retryCallback(); });
+
+  function startBackgroundUpload(blob, filename, pid, taskId, itemLabel){
+    setUploadBar('uploading', '');
+    retryCallback = null;
+
+    async function tryUpload(){
+      try{
+        await uploadBlobWithRetry(blob, filename, pid, taskId, itemLabel);
+        setUploadBar('ok', '');
+      } catch(e){
+        console.error('All auto retries failed:', e);
+        // Show error + manual retry button
+        setUploadBar('error', 'Die Aufnahme konnte nicht gespeichert werden.');
+        retryCallback = async ()=>{
+          setUploadBar('uploading', '');
+          retryCallback = null;
+          try{
+            await uploadBlobWithRetry(blob, filename, pid, taskId, itemLabel);
+            setUploadBar('ok', '');
+          } catch(e2){
+            // Manual retry also failed — queue for zip at end, hide overlay silently
+            console.error('Manual retry also failed:', e2);
+            failedUploads.push({ blob, filename });
+            setUploadBar('hidden', '');
+          }
+        };
+      }
+    }
+
+    return tryUpload();
+  }
+
   function randToken(len=10){
     const a = new Uint8Array(len);
     const c = window.crypto;
@@ -545,8 +684,14 @@ audio{width:100%}
   let itemIdx         = 0;
   let currentItem     = null;
   let returnToRunAfterMic = false;
-  let pidMode = 'provided'; // 'provided' oder 'self'
-  let participantDetailsCollected = false; // nach dem ersten Ausfüllen nicht mehr fragen
+  let pidMode = 'provided';
+  let participantDetailsCollected = false;
+  let completedTasks  = { A: false, B: false };
+
+  // Background upload queue
+  // Each entry: { blob, filename, pid, taskId, itemLabel, resolve, reject, attempt }
+  let pendingUpload = null; // the current background upload promise
+  let pendingUploadPromise = null;
 
   function isoSafeNow(){
     const d = new Date();
@@ -567,38 +712,21 @@ audio{width:100%}
     if (init && yr.length === 4 && sex) return `${init}${yr}${sex}`;
     return "";
   }
-
   function getEffectivePid(){
     if (pidMode === 'provided') return (pidEl.value || "").trim();
     return computeSelfPid();
   }
 
   function buildConsentCsvBlob(pid, taskPlanned){
-    const header = [
-      "session_id","session_start_iso","consent_time_iso",
-      "participant_id","task_selected_at_pid_step","bundesland","city",
-      "pid_mode","sex","year_of_birth"
-    ];
+    const header = ["session_id","session_start_iso","consent_time_iso","participant_id","task_selected_at_pid_step","bundesland","city","pid_mode","sex","year_of_birth"];
     const sex = pidMode === 'self' ? (selfSex.value || "") : (pidSex ? pidSex.value || "" : "");
     const yob = pidMode === 'self' ? ((selfYear.value||"").trim()) : (pidYear ? (pidYear.value||"").trim() : "");
-    const row = [
-      sessionId, sessionStartIso, consentTimeIso,
-      pid || "", taskPlanned || "",
-      (stateSel ? stateSel.value : ""),
-      (citySel  ? (citySel.value || "").trim() : ""),
-      pidMode, sex, yob
-    ];
-    const lines = [header.join(","), row.map(csvEscape).join(",")];
-    return new Blob([lines.join("\n")], {type:"text/csv"});
+    const row = [sessionId, sessionStartIso, consentTimeIso, pid || "", taskPlanned || "", (stateSel ? stateSel.value : ""), (citySel ? (citySel.value || "").trim() : ""), pidMode, sex, yob];
+    return new Blob([[header.join(","), row.map(csvEscape).join(",")].join("\n")], {type:"text/csv"});
   }
 
   const sessionRows = [];
-  const CSV_HEADER = [
-    "session_id","session_start_iso","participant_id",
-    "task","lang","condition","target_token",
-    "item_index","prompt_text","primes",
-    "filename_wav","accepted_at_iso","duration_seconds","sample_rate_hz"
-  ];
+  const CSV_HEADER = ["session_id","session_start_iso","participant_id","task","lang","condition","target_token","item_index","prompt_text","primes","filename_wav","accepted_at_iso","duration_seconds","sample_rate_hz"];
   function buildSessionCsvBlob(){
     const lines = [CSV_HEADER.join(",")];
     for (const row of sessionRows){ lines.push(row.map(csvEscape).join(",")); }
@@ -621,16 +749,8 @@ audio{width:100%}
     return `${pid}_${targetTok}_${lang}_${cond}_${take}.wav`;
   }
 
-  function saveLocal(blob, filename){
-    const a = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    a.href = url; a.download = filename;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=>URL.revokeObjectURL(url), 2000);
-  }
-
-  async function uploadBlob(blob, filename, pid, taskId, itemLabel){
-    if (!UPLOAD_URL) throw new Error("Keine Upload-URL konfiguriert");
+  // ---- Upload with retry ----
+  async function uploadBlobWithRetry(blob, filename, pid, taskId, itemLabel){
     const base64 = await new Promise((res,rej)=>{
       const fr = new FileReader();
       fr.onerror = rej;
@@ -638,16 +758,42 @@ audio{width:100%}
       fr.readAsDataURL(blob);
     });
     const payload = JSON.stringify({
-      pid, item: itemLabel || `${taskId} Item ${String(itemIdx+1).padStart(2,'0')}`,
+      pid, item: itemLabel || filename,
       filename, mime: blob.type || "application/octet-stream", b64: base64
     });
-    const r = await fetch(UPLOAD_URL, { method:"POST", headers:{"Content-Type":"text/plain"}, body: payload });
-    if (!r.ok) throw new Error("HTTP "+r.status);
-    const text = await r.text();
-    let data;
-    try{ data = JSON.parse(text); }catch(e){ throw new Error("Endpunkt hat keine gültige JSON-Antwort zurückgegeben"); }
-    if (!data.ok) throw new Error(data.error || "Upload fehlgeschlagen");
-    return data;
+
+    let lastError;
+    for (let attempt = 0; attempt < MAX_UPLOAD_RETRIES; attempt++){
+      if (attempt > 0){
+        const delay = RETRY_DELAYS_MS[attempt - 1] || 25000;
+        setUploadBar('uploading', `Verbindungsfehler – erneuter Versuch…`);
+        await new Promise(r => setTimeout(r, delay));
+      }
+      try{
+        const r = await fetch(UPLOAD_URL, { method:"POST", headers:{"Content-Type":"text/plain"}, body: payload });
+        if (!r.ok) throw new Error("HTTP "+r.status);
+        const text = await r.text();
+        let data;
+        try{ data = JSON.parse(text); }catch(e){ throw new Error("Ungültige JSON-Antwort vom Server"); }
+        if (!data.ok) throw new Error(data.error || "Upload fehlgeschlagen");
+        return data; // success
+      } catch(e){
+        lastError = e;
+        console.warn(`Upload attempt ${attempt+1} failed:`, e);
+      }
+    }
+    throw lastError;
+  }
+
+  // ---- Task completion tracking ----
+  function markTaskDone(taskId){
+    completedTasks[taskId] = true;
+    const card = taskId === 'A' ? taskCardA : taskCardB;
+    if (card) card.classList.add('done');
+    // If both done, show final overlay after a short delay
+    if (completedTasks.A && completedTasks.B){
+      setTimeout(()=>{ finalOverlay.classList.add('active'); }, 800);
+    }
   }
 
   // ---- Einwilligung ----
@@ -659,7 +805,6 @@ audio{width:100%}
     if (!consentChk.checked) { alert('Bitte setzen Sie das Häkchen, um fortzufahren.'); return; }
     consentGiven   = true;
     consentTimeIso = new Date().toISOString();
-    try{ localStorage.setItem('consented','1'); localStorage.setItem('consent_time', consentTimeIso); localStorage.setItem('session_id', sessionId); }catch(e){}
     show(scrTaskSel);
     try{ if (scrConsent && scrConsent.parentNode) scrConsent.parentNode.removeChild(scrConsent); }catch(e){}
   });
@@ -697,7 +842,6 @@ audio{width:100%}
     updatePidContinue();
   }
 
-  // ---- PID + Ortsangabe Validierung ----
   function updatePidContinue(){
     const okState = !!(stateSel && String(stateSel.value||"").trim());
     const okCity  = !!(citySel  && String(citySel.value ||"").trim());
@@ -725,7 +869,6 @@ audio{width:100%}
     taskItems = (t && Array.isArray(t.items)) ? t.items.slice() : [];
     itemIdx = 0; currentItem = null;
     if (participantDetailsCollected){
-      // Angaben bereits erfasst — direkt zur Aufgabenanleitung
       instrTitle.textContent = t ? t.name : "Aufgabenanleitung";
       instrBody.innerHTML    = (t && t.instructionsHtml) ? t.instructionsHtml : "<p class='subtitle'>Anleitung nicht verfügbar.</p>";
       show(scrInstr);
@@ -745,9 +888,9 @@ audio{width:100%}
     const consentBlob = buildConsentCsvBlob(pid, selectedTaskId || "");
     const consentName = `${pid}__CONSENT__${isoSafeNow()}__S${sessionId}.csv`;
     try{
-      if (UPLOAD_URL){ await uploadBlob(consentBlob, consentName, pid, "CONSENT", "consent"); consentUploaded = true; }
-      else { throw new Error("Keine Upload-URL konfiguriert"); }
-    }catch(e){ console.warn(e); saveLocal(consentBlob, consentName); consentUploaded = true; }
+      await uploadBlobWithRetry(consentBlob, consentName, pid, "CONSENT", "consent");
+      consentUploaded = true;
+    }catch(e){ console.warn('Consent upload failed after retries:', e); consentUploaded = true; }
   }
 
   btnPidContinue.addEventListener('click', async ()=>{
@@ -973,13 +1116,25 @@ audio{width:100%}
       await populateMicList();
       testBox.style.display = "block";
       resetTestUI();
+      btnInit.disabled = true;
+
+      // Detect if the user revokes mic permission mid-session
+      stream.getAudioTracks().forEach(track => {
+        track.addEventListener('ended', ()=>{
+          cleanupAudioOnFailure();
+          micReady = false;
+          testBox.style.display = "none";
+          btnInit.disabled = false;
+          btnBeginTask.disabled = true;
+          setMicStatus("Mikrofon: Berechtigung widerrufen — bitte erneut aktivieren");
+        });
+      }); // success — hide button, mic is running
     } catch (e){
       console.error(e);
-      cleanupAudioOnFailure(); setMicStatus("Mikrofon: Fehler");
-      alert("Mikrofoninitialisierung fehlgeschlagen.\n\nBitte verwenden Sie einen aktuellen Chrome/Edge/Firefox-Browser, laden Sie die Seite neu und stellen Sie sicher, dass die Mikrofonberechtigung erteilt ist.");
-      btnInit.disabled = false;
+      cleanupAudioOnFailure(); setMicStatus("Mikrofon: Fehler — bitte erneut versuchen");
+      alert("Mikrofoninitialisierung fehlgeschlagen.\n\nBitte stellen Sie sicher, dass die Mikrofonberechtigung erteilt ist, und versuchen Sie es erneut.");
+      btnInit.disabled = false; // allow retry
     }
-    btnInit.disabled = true;
   }
 
   btnInit.addEventListener('click', initMic);
@@ -1014,7 +1169,7 @@ audio{width:100%}
     if (testTimer){ clearInterval(testTimer); testTimer = null; }
     if (testPeak < SILENCE_PEAK_THRESHOLD){
       setTestStatus("Test: kein Audio erkannt ⚠");
-      alert("Im Test wurde kein Audio erkannt.\n\nBitte wählen Sie ein anderes Mikrofongerät (oben) und versuchen Sie es erneut, oder überprüfen Sie die Mikrofoneinstellungen im Betriebssystem bzw. Browser.");
+      alert("Im Test wurde kein Audio erkannt.\n\nBitte wählen Sie ein anderes Mikrofongerät (oben) und versuchen Sie es erneut, oder überprüfen Sie die Mikrofoneinstellungen.");
       resetTestUI(); return;
     }
     testBlob = encodeWavFromBuffers(testBuffers, testTotalLength); testReady = true;
@@ -1056,7 +1211,7 @@ audio{width:100%}
 
   btnBeginTask.addEventListener('click', ()=>{
     if (!micReady || !audioCtx || !stream){ alert('Bitte klicken Sie zuerst auf „Mikrofon aktivieren".'); return; }
-    if (!testReady){ alert('Bitte führen Sie zuerst die Testaufnahme durch (oder wiederholen Sie sie bei Bedarf).'); return; }
+    if (!testReady){ alert('Bitte führen Sie zuerst die Testaufnahme durch.'); return; }
     if (returnToRunAfterMic){
       if (btnBackToTask) btnBackToTask.style.display = "none";
       returnToRunAfterMic = false;
@@ -1081,11 +1236,11 @@ audio{width:100%}
         primesWords.appendChild(span);
       }
       groupTitleEl.textContent = "Nehmen Sie die 3 Wörter und dann den Satz auf (in einer Aufnahme):";
-      runHint.innerHTML = 'Drücken Sie <strong>Aufnahme starten</strong>. <strong>Sprechen Sie die drei Wörter oben und dann den Satz.</strong> Drücken Sie <strong>Stopp</strong>, dann <strong>Akzeptieren &amp; speichern</strong>.';
+      runHint.innerHTML = 'Drücken Sie <strong>Aufnahme starten</strong>. <strong>Sprechen Sie die drei Wörter oben und dann den Satz.</strong> Drücken Sie dann <strong>Aufnahme stoppen &amp; speichern</strong>.';
     } else {
       primesBox.style.display = "none"; primesWords.innerHTML = "";
       groupTitleEl.textContent = "Lesen Sie den Satz laut vor:";
-      runHint.innerHTML = 'Drücken Sie <strong>Aufnahme starten</strong>, lesen Sie den Satz einmal vor, drücken Sie <strong>Stopp</strong>, dann <strong>Akzeptieren &amp; speichern</strong>.';
+      runHint.innerHTML = 'Drücken Sie <strong>Aufnahme starten</strong>, lesen Sie den Satz einmal vor, dann drücken Sie <strong>Aufnahme stoppen &amp; speichern</strong>.';
     }
     promptDisplay.textContent = currentItem ? currentItem.promptText : "—";
     recording = false; recBuffers = []; totalLength = 0;
@@ -1094,13 +1249,13 @@ audio{width:100%}
     setRunStatus("bereit");
     btnStartRec.disabled = (N === 0);
     btnStopRec.disabled  = true;
-    btnAccept.disabled   = true;
     btnNext.disabled     = true;
   }
 
   function startTaskRun(){
     const t = TASKS[selectedTaskId];
     if (!t){ alert("Aufgabe nicht gefunden."); show(scrTaskSel); return; }
+    setUploadBar('hidden','');
     show(scrRun); renderCurrentItem();
   }
 
@@ -1112,44 +1267,31 @@ audio{width:100%}
     recording = true;
     setRunStatus("Aufnahme läuft…");
     btnStartRec.disabled = true; btnStopRec.disabled = false;
-    btnAccept.disabled = true;   btnNext.disabled = true;
+    btnNext.disabled = true;
     if (recTimer) clearInterval(recTimer);
     recStartMs = Date.now();
     recTimer = setInterval(()=>{ if (recording && (Date.now()-recStartMs)>=MAX_REC_SECONDS*1000){ stopRecording(); }}, 250);
   }
 
-  function stopRecording(){
+  async function stopAndSave(){
     if (!recording) return;
     recording = false;
     if (recTimer){ clearInterval(recTimer); recTimer = null; }
     if (recPeak < SILENCE_PEAK_THRESHOLD){
       setRunStatus("kein Audio erkannt ⚠");
-      alert("In dieser Aufnahme wurde kein Audio erkannt.\n\nBitte überprüfen Sie, ob Ihr Mikrofon funktioniert (der Pegelanzeiger sollte sich bewegen), und nehmen Sie erneut auf.");
+      alert("In dieser Aufnahme wurde kein Audio erkannt.\n\nBitte überprüfen Sie, ob Ihr Mikrofon funktioniert, und nehmen Sie erneut auf.");
       lastBlob = null; lastDuration = 0;
-      btnStopRec.disabled = true; btnAccept.disabled = true; btnStartRec.disabled = false; return;
+      btnStopRec.disabled = true; btnStartRec.disabled = false; return;
     }
     lastBlob = encodeWav(); lastDuration = totalLength / sampleRate; lastRecPeak = recPeak;
-    setRunStatus("gestoppt");
-    btnStopRec.disabled = true; btnAccept.disabled = false;
-  }
+    btnStopRec.disabled = true;
 
-  async function acceptAndSave(){
-    if (!lastBlob || !currentItem){ alert("Bitte nehmen Sie zuerst den Satz auf."); return; }
-    if (lastRecPeak < SILENCE_PEAK_THRESHOLD){
-      alert("Diese Aufnahme scheint kein Audio zu enthalten. Bitte nehmen Sie erneut auf.");
-      lastBlob = null; btnAccept.disabled = true; btnStartRec.disabled = false; return;
-    }
-    const pid    = getEffectivePid() || 'anon';
-    const taskId = selectedTaskId || "X";
+    if (!currentItem){ return; }
+    const pid     = getEffectivePid() || 'anon';
+    const taskId  = selectedTaskId || "X";
     const wavName = buildWavNameFromItem(currentItem);
-    setOverlay(true, "Hochladen… bitte warten", "Das kann einige Sekunden dauern. Schließen Sie diesen Tab nicht.");
-    btnAccept.disabled = true; btnNext.disabled = true;
-    btnStopRec.disabled = true; btnStartRec.disabled = true;
     const acceptedAt = new Date().toISOString();
-    try{
-      if (UPLOAD_URL){ await uploadBlob(lastBlob, wavName, pid, taskId); setRunStatus("hochgeladen ✓"); }
-      else { throw new Error("Keine Upload-URL konfiguriert"); }
-    }catch(e){ console.warn(e); saveLocal(lastBlob, wavName); setRunStatus("lokal gespeichert"); }
+
     sessionRows.push([
       sessionId, sessionStartIso, pid,
       taskId, currentItem.lang||"", currentItem.condition||"",
@@ -1158,40 +1300,104 @@ audio{width:100%}
       (currentItem.primes ? currentItem.primes.join("|") : ""),
       wavName, acceptedAt, lastDuration.toFixed(3), String(sampleRate)
     ]);
-    setOverlay(false);
+
+    const blobToUpload = lastBlob;
+    lastBlob = null;
     btnNext.disabled = false;
+    btnStartRec.disabled = true;
+    setRunStatus("gespeichert");
+    pendingUploadPromise = startBackgroundUpload(blobToUpload, wavName, pid, taskId, wavName);
   }
 
-  function nextItem(){
+  async function nextItem(){
+    // If there's a pending upload still running, wait briefly and check
+    if (pendingUploadPromise){
+    const uploadBarState = bgUploadOverlay.classList.contains('active');
+      if (uploadBarState){
+        // Upload still in progress — wait for it before allowing next item
+        setUploadBar('uploading', 'Bitte warten – Upload läuft noch…');
+        btnNext.disabled = true;
+        try{
+          await pendingUploadPromise;
+        } catch(e){
+          // Failed even after retries — show permanent error, still allow next
+          setUploadBar('error', 'Bitte überprüfen Sie Ihre Internetverbindung.');
+        }
+        btnNext.disabled = false;
+        pendingUploadPromise = null;
+      }
+    }
+
     itemIdx++;
-    if (itemIdx >= taskItems.length){ finishTask(); return; }
+    if (itemIdx >= taskItems.length){ await finishTask(); return; }
     renderCurrentItem();
   }
 
   async function finishTask(){
     const pid    = getEffectivePid() || 'anon';
     const taskId = selectedTaskId || "X";
-    const csvBlob= buildSessionCsvBlob();
-    const csvName= `${pid}__${taskId}__SESSION__${isoSafeNow()}__S${sessionId}.csv`;
+
+    // Wait for any pending upload before finishing
+    if (pendingUploadPromise){
+      setOverlay(true, "Letzte Aufnahme wird hochgeladen…", "Bitte einen Moment warten.");
+      try{ await pendingUploadPromise; }catch(e){}
+      pendingUploadPromise = null;
+      setOverlay(false);
+    }
+
+    // If there were failed uploads, offer zip download now
+    if (failedUploads.length > 0){
+      setOverlay(true, "Nicht hochgeladene Aufnahmen werden gespeichert…", "Bitte warten.");
+      try{
+        const zip = new JSZip();
+        for (const { blob, filename } of failedUploads){
+          zip.file(filename, blob);
+        }
+        const csvBlob = buildSessionCsvBlob();
+        const csvName = `${pid}__${taskId}__SESSION__${isoSafeNow()}__S${sessionId}.csv`;
+        zip.file(csvName, csvBlob);
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const zipName = `${pid}__${taskId}__AUFNAHMEN__${isoSafeNow()}.zip`;
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(zipBlob);
+        a.download = zipName;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(()=> URL.revokeObjectURL(a.href), 5000);
+        failedUploads.length = 0;
+      } catch(e){ console.error('ZIP creation failed:', e); }
+      setOverlay(false);
+      // Show zip info overlay — participant must acknowledge before continuing
+      zipOverlay.classList.add('active');
+      await new Promise(resolve => {
+        const orig = btnZipOk.onclick;
+        btnZipOk.onclick = ()=>{ zipOverlay.classList.remove('active'); btnZipOk.onclick = orig; resolve(); };
+      });
+    }
+
+    // Upload session CSV
+    const csvBlob = buildSessionCsvBlob();
+    const csvName = `${pid}__${taskId}__SESSION__${isoSafeNow()}__S${sessionId}.csv`;
     setOverlay(true, "Sitzungsprotokoll wird hochgeladen…", "Bitte warten.");
-    let csvUploaded = false;
     try{
-      if (UPLOAD_URL){ await uploadBlob(csvBlob, csvName, pid, taskId, "session_log"); csvUploaded = true; }
-      else { throw new Error("Keine Upload-URL konfiguriert"); }
-    }catch(e){ console.warn(e); saveLocal(csvBlob, csvName); }
+      await uploadBlobWithRetry(csvBlob, csvName, pid, taskId, "session_log");
+    }catch(e){ console.warn('Session CSV upload failed:', e); }
     finally{ setOverlay(false); }
+
+    // Mark task as done
+    markTaskDone(taskId);
+
     show(scrDone);
     const t = TASKS[selectedTaskId];
-    summaryEl.textContent = `${t ? t.name : "Aufgabe "+taskId} abgeschlossen für Teilnehmer:in ${pid}. Gespeicherte Aufnahmen: ${taskItems.length}. Sitzungsprotokoll: ${csvUploaded ? "hochgeladen ✓" : "lokal gespeichert"}.`;
+    summaryEl.textContent = `${t ? t.name : "Aufgabe "+taskId} abgeschlossen für Teilnehmer:in ${pid}. Gespeicherte Aufnahmen: ${taskItems.length}.`;
   }
 
   btnStartRec.addEventListener('click', startRecording);
-  btnStopRec.addEventListener('click',  stopRecording);
-  btnAccept.addEventListener('click',   acceptAndSave);
+  btnStopRec.addEventListener('click',  stopAndSave);
   btnNext.addEventListener('click',     nextItem);
 
   btnBackToTasksDone.addEventListener('click', ()=>{
     selectedTaskId = null; taskItems = []; itemIdx = 0; currentItem = null;
+    setUploadBar('hidden','');
     show(scrTaskSel);
   });
 })();
